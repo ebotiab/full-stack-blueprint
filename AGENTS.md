@@ -26,6 +26,7 @@ Neon or Logfire without the user's explicit go-ahead.
 - `.github/workflows/ci.yml`: five combinations that cover every value of every option, and the
   update check.
 - `.agents/skills/`: this repository's skills (`.claude/skills` links here).
+  `.claude/settings.json` turns off Claude Code plugins this repository does not use.
 
 ## Rules for changing the template
 

@@ -43,7 +43,7 @@ jobs:
         if: steps.secrets.outputs.ready == 'true'
         with:
           ref: ${{ '{{' }} env.COMMIT {{ '}}' }}
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
         if: steps.secrets.outputs.ready == 'true'
         with:
           python-version: "3.13"

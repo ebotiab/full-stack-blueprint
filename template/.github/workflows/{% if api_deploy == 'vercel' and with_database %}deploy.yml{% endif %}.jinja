@@ -50,7 +50,7 @@ jobs:
         if: steps.secrets.outputs.ready == 'true'
         with:
           ref: ${{ '{{' }} github.event.workflow_run.head_sha || github.sha {{ '}}' }}
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
         if: steps.secrets.outputs.ready == 'true'
         with:
           python-version: "3.13"

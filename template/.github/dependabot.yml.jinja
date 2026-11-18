@@ -13,6 +13,7 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+{%- if with_frontend %}
 
   - package-ecosystem: npm
     directory: /frontend
@@ -30,6 +31,7 @@ updates:
       # @types/node follows the Node major in use (24), not its own releases.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+{%- endif %}
 
   - package-ecosystem: github-actions
     directory: /

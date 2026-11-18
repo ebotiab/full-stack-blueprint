@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+backend/.logfire/
+# Written by the FastAPI Cloud deploy workflow, never committed.
+backend/DEPLOYED_COMMIT
+
+# Node
+node_modules/
+dist/
+test-results/
+playwright-report/
+*.tsbuildinfo
+
+# Local settings and secrets
+.env
+.env.local
+.env.*.local
+.vercel/
+{%- if api_deploy == 'fastapi_cloud' %}
+.fastapicloud/
+{%- endif %}
+
+# Editors and OS
+.DS_Store
+.idea/

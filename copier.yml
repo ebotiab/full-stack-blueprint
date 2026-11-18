@@ -1,0 +1,122 @@
+# Copier template: FastAPI + asyncpg + PostgreSQL API, Vite + React visor, CI and deploy config.
+#
+# Every question has a default and a `help`, so the template runs without any prompt:
+#
+#   copier copy --trust=false --defaults gh:ebotiab/full-stack-blueprint my-app
+#   copier copy --defaults --data project_name="Bus Stops" --data api_deploy=railway gh:ebotiab/full-stack-blueprint bus-stops
+#   copier copy --defaults --data-file answers.yml gh:ebotiab/full-stack-blueprint my-app
+#
+# There are no `_tasks`: nothing runs at generation time, so `--trust` is never needed. The
+# generated `Makefile` does the setup (`make setup`).
+
+_min_copier_version: "9.7.0"
+_subdirectory: template
+_answers_file: .copier-answers.yml
+# .claude/skills is a symlink to .agents/skills (one canonical folder for every agent).
+_preserve_symlinks: true
+_envops:
+  keep_trailing_newline: true
+
+project_name:
+  type: str
+  help: Human-readable project name, used in titles and docs (e.g. "Bus Stops").
+  default: My Project
+  validator: "{% if not project_name.strip() %}The project name cannot be empty.{% endif %}"
+
+project_slug:
+  type: str
+  help: >-
+    Short name in kebab-case: repository, CLI command, Docker and service names (e.g. bus-stops).
+  default: "{{ project_name | lower | regex_replace('[^a-z0-9]+', '-') | trim('-') }}"
+  validator: >-
+    {% if not (project_slug | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) %}Use lowercase
+    letters, digits and single hyphens, starting with a letter.{% endif %}
+
+package_name:
+  type: str
+  help: Python package name (snake_case), importable as `import <package_name>`.
+  default: "{{ project_slug | replace('-', '_') }}"
+  validator: >-
+    {% if not (package_name | regex_search('^[a-z][a-z0-9_]*$')) %}Use lowercase letters, digits
+    and underscores, starting with a letter.{% endif %}
+
+env_prefix:
+  type: str
+  help: Prefix of the project's own environment variables (e.g. BUS_STOPS_ → BUS_STOPS_DATABASE_URL).
+  default: "{{ package_name | upper }}_"
+  validator: >-
+    {% if not (env_prefix | regex_search('^[A-Z][A-Z0-9_]*_$')) %}Use uppercase letters, digits
+    and underscores, ending with an underscore.{% endif %}
+
+description:
+  type: str
+  help: One-sentence description, used in pyproject.toml, the API docs and the README.
+  default: A FastAPI API with a React visor.
+
+github_repo:
+  type: str
+  help: >-
+    GitHub repository as owner/name. Used for links, for Logfire's code source and for the Railway
+    service source. It does not need to exist yet.
+  default: "your-github-user/{{ project_slug }}"
+  validator: >-
+    {% if not (github_repo | regex_search('^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$')) %}Use the form
+    owner/name.{% endif %}
+
+with_frontend:
+  type: bool
+  help: Include the visor (Vite + React + TypeScript in frontend/) that calls the API through a typed client.
+  default: true
+
+with_database:
+  type: bool
+  help: Include PostgreSQL (asyncpg pool, SQL migrations, docker-compose for local development).
+  default: true
+
+postgres_port:
+  type: int
+  help: >-
+    Host port of the local PostgreSQL container from docker-compose. Pick one that no other
+    project uses on your machine; `make doctor` tells you if it is taken.
+  default: 5434
+  when: "{{ with_database }}"
+  validator: "{% if postgres_port < 1024 or postgres_port > 65535 %}Use a port between 1024 and 65535.{% endif %}"
+
+# Python type checker. pyright is the default because it is stable and matches Pylance (VS Code).
+# ty (Astral) is faster and is the planned default once it reaches a stable 1.0 release: when that
+# happens, change `default: pyright` to `default: ty` below (one line) and update the README
+# section "Options and defaults".
+type_checker:
+  type: str
+  help: Python type checker run by `make check` and the CI.
+  default: pyright
+  choices:
+    pyright (stable, same engine as Pylance): pyright
+    ty (Astral, beta 0.0.x, faster): ty
+
+# Where the API runs in production. Render is the default: Docker image, Frankfurt region,
+# migrations at start-up on the free plan. FastAPI Cloud becomes the default when it offers all of:
+# an EU region, a Dockerfile or a pre-start command, rollbacks out of "coming soon", and active
+# usage-based billing. When that happens, change `default: render` to `default: fastapi_cloud`
+# below (one line) and update the README section "Options and defaults".
+api_deploy:
+  type: str
+  help: Where the API is deployed. Only the files for this target are generated.
+  default: render
+  choices:
+    Render (Docker, Frankfurt): render
+    FastAPI Cloud (fastapi deploy from GitHub Actions): fastapi_cloud
+    Railway (Docker, Amsterdam, pre-deploy migrations): railway
+    Vercel (Python functions, same project and domain as the visor): vercel
+
+api_public_url:
+  type: str
+  help: >-
+    Public URL of the deployed API, used by the visor's vercel.json to proxy /api (no CORS). The
+    default is the platform's usual URL for this project; edit vercel.json after creating the
+    service if the real one differs.
+  default: >-
+    {%- if api_deploy == 'render' -%}https://{{ project_slug }}-api.onrender.com
+    {%- elif api_deploy == 'railway' -%}https://{{ project_slug }}-api.up.railway.app
+    {%- else -%}https://{{ project_slug }}.fastapicloud.dev{%- endif -%}
+  when: "{{ with_frontend and api_deploy != 'vercel' }}"

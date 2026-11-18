@@ -1,0 +1,63 @@
+# Production deploy on Vercel: migrate the database, then deploy (visor and API together).
+#
+# vercel.json turns off Vercel's automatic production deploys from main
+# ("git.deploymentEnabled"), so the schema is always migrated before the code that needs it goes
+# live. Pull requests still get their preview deployments from the Git integration.
+#
+# Repository secrets: DATABASE_URL (Neon *direct* connection string, without -pooler: migrations
+# need a session), VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID (from `vercel link`,
+# .vercel/project.json). Without them this workflow skips the deploy and says so.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate and deploy to Vercel
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ '{{' }} secrets.DATABASE_URL {{ '}}' }}
+      VERCEL_TOKEN: ${{ '{{' }} secrets.VERCEL_TOKEN {{ '}}' }}
+      VERCEL_ORG_ID: ${{ '{{' }} secrets.VERCEL_ORG_ID {{ '}}' }}
+      VERCEL_PROJECT_ID: ${{ '{{' }} secrets.VERCEL_PROJECT_ID {{ '}}' }}
+    steps:
+      - name: Secrets present?
+        id: secrets
+        run: |
+          for name in DATABASE_URL VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::notice::$name is not set: skipping the deploy (README, 'Deploy')."
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          ref: ${{ '{{' }} github.event.workflow_run.head_sha || github.sha {{ '}}' }}
+      - uses: astral-sh/setup-uv@v10
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          python-version: "3.13"
+      - name: Migrate the production database
+        if: steps.secrets.outputs.ready == 'true'
+        working-directory: backend
+        run: uv run --locked {{ project_slug }} migrate
+      - name: Deploy to production
+        if: steps.secrets.outputs.ready == 'true'
+        run: npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN"

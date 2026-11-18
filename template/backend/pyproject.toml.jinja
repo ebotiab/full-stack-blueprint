@@ -1,0 +1,79 @@
+[project]
+name = "{{ project_slug }}"
+version = "0.1.0"
+description = "{{ description }}"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+{%- if with_database %}
+    "asyncpg>=0.32.0",
+{%- endif %}
+{%- if api_deploy == 'fastapi_cloud' %}
+    # FastAPI Cloud runs the app with the FastAPI CLI, and `fastapi deploy` comes with it.
+    "fastapi[standard]>=0.164.0",
+{%- else %}
+    "fastapi>=0.164.0",
+{%- endif %}
+    "httpx>=0.28.1",
+    "logfire[{% if with_database %}asyncpg,{% endif %}fastapi,httpx]>=5.6.0",
+    "pydantic-settings>=2.16.3",
+    "typer>=0.29.2",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+{{ project_slug }} = "{{ package_name }}.cli:app"
+
+# Entry point for `fastapi dev`/`fastapi run` and for FastAPI Cloud.
+[tool.fastapi]
+entrypoint = "{{ package_name }}.api.main:app"
+
+[build-system]
+requires = ["uv_build>=0.11.19,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "asgi-lifespan>=2.1.0",
+{%- if type_checker == 'ty' %}
+    "ty>=0.0.106",
+{%- else %}
+    "pyright>=1.1.414",
+{%- endif %}
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
+    "ruff>=0.17.5",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+# Logfire's pytest plugin only activates with CI=true and a LOGFIRE_TOKEN; tests never send data.
+addopts = "--no-logfire"
+filterwarnings = ["error::DeprecationWarning:{{ package_name }}.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+{%- if type_checker == 'ty' %}
+
+[tool.ty.environment]
+python-version = "3.13"
+
+[tool.ty.src]
+include = ["src", "tests"]
+{%- else %}
+
+# Same level as Pylance in VS Code ("standard"): what passes here shows no warnings in the editor.
+[tool.pyright]
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+include = ["src", "tests"]
+{%- endif %}

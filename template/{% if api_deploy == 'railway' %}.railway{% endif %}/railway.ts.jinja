@@ -1,0 +1,32 @@
+// Railway Infrastructure as Code (https://docs.railway.com/infrastructure-as-code). Railway's
+// older railway.json/railway.toml ("Config as Code") is deprecated and stops being read on
+// 2026-12-01, so this project uses .railway/railway.ts.
+//
+// Preview and apply from the repository root (asks for confirmation):
+//   npm install --prefix .railway && railway link && railway config plan && railway config apply
+import { defineRailway, github, preserve, project, service } from 'railway/iac'
+
+export default defineRailway(() => {
+  const api = service('{{ project_slug }}-api', {
+    // Railway builds backend/Dockerfile because it finds one in the root directory.
+    source: github('{{ github_repo }}', { branch: 'main', rootDirectory: 'backend' }),
+    healthcheck: '/api/healthz',
+{%- if with_database %}
+    // Migrations run between build and deploy; a failure stops the deploy.
+    preDeploy: '{{ project_slug }} migrate',
+{%- endif %}
+    // EU West (Amsterdam).
+    replicas: { 'europe-west4': 1 },
+    env: {
+{%- if with_database %}
+      // Neon (or Railway PostgreSQL) connection string, set in the Railway dashboard.
+      DATABASE_URL: preserve(),
+{%- endif %}
+      {{ env_prefix }}ENVIRONMENT: 'production',
+      // Logfire write token, set in the Railway dashboard. Without it nothing is sent.
+      LOGFIRE_TOKEN: preserve(),
+    },
+  })
+
+  return project('{{ project_slug }}', { resources: [api] })
+})

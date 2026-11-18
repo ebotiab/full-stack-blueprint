@@ -1,0 +1,129 @@
+# {{ project_name }}
+
+{{ description }}
+
+This file is the instructions for coding agents (Claude Code reads it through `CLAUDE.md`; Codex,
+Cursor and others read it directly). People start with the [README](README.md). The project was
+generated from the Copier template `full-stack-blueprint`; `.copier-answers.yml` records the
+answers and is only changed by `copier update` (see "Template updates").
+
+## Where things are
+
+- `backend/`: the API. Python 3.13 with uv, FastAPI, {% if with_database %}asyncpg (no ORM), {% endif %}pydantic-settings, Typer, Logfire.
+  - `src/{{ package_name }}/api/`: the app (`main.py`) and its routes (`routes.py`). Every route is under `/api`.
+{%- if with_database %}
+  - `src/{{ package_name }}/db/`: the connection pool (`pool.py`), the migration runner (`migrate.py`) and the SQL migrations (`migrations/NNNN_name.sql`).
+{%- endif %}
+  - `src/{{ package_name }}/settings.py`: configuration from environment variables prefixed `{{ env_prefix }}`; defaults work locally.
+  - `src/{{ package_name }}/observability.py`: Logfire set-up and the deployed commit. `obs.py`: production status from traces.
+  - `src/{{ package_name }}/cli.py`: the `{{ project_slug }}` command ({% if with_database %}`migrate`, {% endif %}`openapi`, `obs status`).
+  - `openapi.json`: the API contract, generated (`make types`). Committed.
+  - `tests/`: pytest{% if with_database %}; the integration tests use a real PostgreSQL database{% endif %}.
+{%- if with_frontend %}
+- `frontend/`: the visor. Vite, React, TypeScript, oxlint, oxfmt, Vitest, Playwright.
+  - `src/api/client.ts`: the typed API client (`openapi-fetch`). `src/api/schema.d.ts` is generated from `backend/openapi.json`: never edit it.
+  - `src/**/*.test.ts`: unit tests (Vitest). `e2e/`: browser tests (Playwright); they answer `/api` themselves with `page.route`.
+{%- endif %}
+- `Makefile`: one target per task (below). `scripts/`: what the Makefile runs (`doctor.sh`, `steps.sh`).
+{%- if with_database %}
+- `docker-compose.yml`: the local PostgreSQL 17 on port {{ postgres_port }}.
+{%- endif %}
+- `.github/workflows/ci.yml`: the CI; `.github/scripts/what-changed.sh` decides which half a pull request can affect. `.github/dependabot.yml`: weekly grouped dependency updates.
+{%- if api_deploy == 'render' %}
+- `render.yaml`: the Render Blueprint of the API. `backend/Dockerfile`: its image.
+{%- elif api_deploy == 'railway' %}
+- `.railway/railway.ts`: Railway Infrastructure as Code for the API. `backend/Dockerfile`: its image.
+{%- elif api_deploy == 'fastapi_cloud' %}
+- `.github/workflows/deploy-api.yml`: deploys the API to FastAPI Cloud after the CI passes on `main`.
+{%- elif api_deploy == 'vercel' %}
+- `vercel.json`: one Vercel project with {% if with_frontend %}two services, the visor and{% else %}one service,{% endif %} the API (Python functions) under `/api`.
+{%- if with_database %} `.github/workflows/deploy.yml`: migrates, then deploys production.{% endif %}
+{%- endif %}
+{%- if with_frontend and api_deploy != 'vercel' %}
+- `frontend/vercel.json`: the visor on Vercel; it proxies `/api` to the API, so there is no CORS.
+{%- endif %}
+- `.agents/skills/`: procedures for agents (`.claude/skills` links here). `.vscode/`: editor settings that match the checks.
+
+## Commands
+
+Run everything from the repository root. No target asks for input; each ends with a reliable exit
+code, and the multi-step ones print a summary of what passed and failed.
+
+| Command | What it does |
+| --- | --- |
+| `make doctor` | Checks uv{% if with_frontend %}, Node{% endif %}{% if with_database %} and Docker{% endif %}; says how to fix what is missing. |
+| `make setup` | Installs dependencies{% if with_database %}, starts PostgreSQL, migrates{% endif %} and generates the API schema{% if with_frontend %} and types{% endif %}. Safe to repeat. |
+| `make dev` | Runs the API on :8000{% if with_frontend %} and the visor on :5173{% endif %} with reload. |
+| `make check` | Everything the CI checks. Must pass before a pull request. |
+| `make test` | pytest{% if with_frontend %} and Vitest{% endif %}.{% if with_frontend %} `make e2e` runs Playwright.{% endif %} |
+| `make fmt` | Formats and auto-fixes (ruff{% if with_frontend %}, oxfmt{% endif %}). |
+| `make types` | Regenerates `backend/openapi.json`{% if with_frontend %} and `frontend/src/api/schema.d.ts`{% endif %}. Run it after any API change. |
+{%- if with_database %}
+| `make migrate` | Applies pending migrations to the local database. |
+{%- endif %}
+
+Single checks while working: `cd backend && uv run pytest tests/test_api.py -k healthz`{% if with_frontend %}, `cd frontend && npx playwright test e2e/home.spec.ts`{% endif %}.
+
+## Before opening a pull request
+
+1. `make fmt`, then `make check`. All steps must pass; the CI runs the same targets
+   (`make check-backend`{% if with_frontend %}, `make check-frontend`{% endif %}).
+2. If the API changed: `make types` and commit the regenerated files. The CI fails when they are stale.
+3. Commit lockfiles (`backend/uv.lock`{% if with_frontend %}, `frontend/package-lock.json`{% endif %}) whenever dependencies change.
+
+## Conventions
+
+- **Small pull requests.** One task per branch and per pull request, against `main`. The
+  description says what changes, why, what deserves attention in review and which checks passed.
+  Commit messages are one sentence that describes the result.
+- **Merge on green.** When the pull request is complete (final description, nothing left to
+  decide), mark it with `gh pr merge --squash --auto`: GitHub merges it as soon as the required
+  checks `Backend` and `Frontend` pass, and never if they fail. If the CI fails, fix and push; the
+  mark stays.
+- **Merging is deploying.** A push to `main` deploys{% if api_deploy == 'render' %} the API (Render waits for the CI){% elif api_deploy == 'railway' %} the API (Railway){% elif api_deploy == 'fastapi_cloud' %} the API (`deploy-api.yml`, after the CI){% elif api_deploy == 'vercel' %} {% if with_database %}through `deploy.yml` (migrate, then deploy){% else %}through Vercel's Git integration{% endif %}{% endif %}{% if with_frontend and api_deploy != 'vercel' %} and the visor (Vercel){% endif %}. Nothing is deployed by hand.
+- **Check production after merging.** A task that touches `backend/` ends when production runs the
+  new commit without errors: `cd backend && uv run {{ project_slug }} obs status --commit <merge commit> --wait 15`
+  (exit 0: deployed, no errors; 1: errors since the deploy; 2: not deployed in time; 3: no read
+  token, then say so and check by hand). Investigate any error before calling the task done. Do not
+  poll production with `curl` meanwhile.
+- **Tests.** Every new rule or route gets a pytest test; every visible behaviour of the visor a
+  Playwright test{% if with_frontend %} (mocking `/api`){% endif %}; plain logic a unit test next to it.
+{%- if with_database %}
+- **Migrations.** A schema change is a new file `backend/src/{{ package_name }}/db/migrations/NNNN_short_name.sql`
+  (next number). Never edit an applied migration: the runner stores checksums and refuses changed files.
+  The runner is idempotent and takes a PostgreSQL advisory lock, so concurrent starts are safe.
+{%- endif %}
+- **Configuration.** New settings go in `settings.py` with a local default and the `{{ env_prefix }}` prefix,
+  and in `backend/.env.example`. Secrets never enter the repository; everything runs locally without credentials.
+- **No repeated work.** Read what the task needs, not every file. Run long commands (`make check`,
+  Playwright) once at the end, in the background if your tool allows it, and do not spend turns
+  saying they are still running.
+- **Generated files.** `backend/openapi.json`{% if with_frontend %}, `frontend/src/api/schema.d.ts`{% endif %} and the lockfiles are generated:
+  regenerate them, never edit them by hand.
+
+## Deploy
+
+{% if api_deploy == 'render' -%}
+The API runs on Render (Docker, Frankfurt, free plan) from `render.yaml`.{% if with_database %} Migrations run when it
+starts (`{{ env_prefix }}MIGRATE_ON_START`, on by default here): the free plan has no pre-deploy step.{% endif %}
+{%- elif api_deploy == 'railway' -%}
+The API runs on Railway (Docker, EU West) from `.railway/railway.ts`.{% if with_database %} Migrations run as Railway's
+pre-deploy command (`{{ project_slug }} migrate`); a failure stops the deploy.{% endif %}
+{%- elif api_deploy == 'fastapi_cloud' -%}
+The API runs on FastAPI Cloud, deployed by `.github/workflows/deploy-api.yml` with `fastapi deploy`.
+{%- if with_database %} Migrations run when the API starts (`{{ env_prefix }}MIGRATE_ON_START`, on by default here): FastAPI
+Cloud has no pre-deploy command.{% endif %} The deployed commit reaches the app through `backend/DEPLOYED_COMMIT`, written by the workflow.
+{%- elif api_deploy == 'vercel' -%}
+Visor and API are one Vercel project and one domain (`vercel.json`); the API runs as Python functions.
+{%- if with_database %} The database is Neon through its pooler (small pool per instance, no statement cache);
+`deploy.yml` migrates with the direct connection string and then deploys.{% endif %}
+{%- endif %}
+{%- if with_database and api_deploy != 'vercel' %} Production PostgreSQL is Neon (EU region).{% endif %} Logfire receives the traces when `LOGFIRE_TOKEN` is set.
+The one-time manual steps (accounts, secrets, variables) are in the README, "Deploy". Never create
+or change cloud services without the user's explicit go-ahead.
+
+## Template updates
+
+The project can take later improvements of its template: with a clean worktree, run
+`copier update --defaults` (add `--vcs-ref=HEAD` for the template's latest commit), resolve any
+conflict markers, run `make setup` and `make check`, and open a pull request with the result.

@@ -1,0 +1,14 @@
+"""Vercel entrypoint (vercel.json → services.backend.entrypoint = "main:app").
+
+The app lives in src/{{ package_name }}/; Vercel loads `app` from this file. src/ goes on the path
+so the import works whether or not Vercel installs the project as a package.
+"""
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+
+from {{ package_name }}.api.main import app  # noqa: E402
+
+__all__ = ["app"]

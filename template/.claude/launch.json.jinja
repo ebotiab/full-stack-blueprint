@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "{{ project_slug }}-api",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--directory", "backend", "uvicorn", "{{ package_name }}.api.main:app", "--reload", "--port", "8000"],
+      "port": 8000
+    }{% if with_frontend %},
+    {
+      "name": "{{ project_slug }}-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev", "--", "--host", "127.0.0.1"],
+      "port": 5173
+    }{% endif %}
+  ]
+}

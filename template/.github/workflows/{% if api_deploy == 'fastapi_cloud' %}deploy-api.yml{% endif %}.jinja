@@ -1,0 +1,60 @@
+# Deploy the API to FastAPI Cloud after the CI passes on main (https://fastapicloud.com/docs).
+#
+# Needs two repository secrets: FASTAPI_CLOUD_TOKEN (a deploy token from the app's dashboard,
+# Tokens → Create Token) and FASTAPI_CLOUD_APP_ID. `fastapi cloud setup-ci` creates both.
+# Without them this workflow skips the deploy and says so.
+name: Deploy API
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: FastAPI Cloud
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FASTAPI_CLOUD_TOKEN: ${{ '{{' }} secrets.FASTAPI_CLOUD_TOKEN {{ '}}' }}
+      FASTAPI_CLOUD_APP_ID: ${{ '{{' }} secrets.FASTAPI_CLOUD_APP_ID {{ '}}' }}
+      COMMIT: ${{ '{{' }} github.event.workflow_run.head_sha || github.sha {{ '}}' }}
+    steps:
+      - name: Secrets present?
+        id: secrets
+        run: |
+          if [ -z "$FASTAPI_CLOUD_TOKEN" ] || [ -z "$FASTAPI_CLOUD_APP_ID" ]; then
+            echo "::notice::FASTAPI_CLOUD_TOKEN or FASTAPI_CLOUD_APP_ID is not set: skipping the deploy (README, 'Deploy')."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          ref: ${{ '{{' }} env.COMMIT {{ '}}' }}
+      - uses: astral-sh/setup-uv@v10
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          python-version: "3.13"
+      # FastAPI Cloud does not expose the deployed commit to the app: this file carries it
+      # (observability.deployed_commit reads it). It is git-ignored, but `fastapi deploy`
+      # uploads it because it is written here, in the uploaded folder.
+      - name: Record the deployed commit
+        if: steps.secrets.outputs.ready == 'true'
+        working-directory: backend
+        run: echo "$COMMIT" > DEPLOYED_COMMIT
+      - name: fastapi deploy
+        if: steps.secrets.outputs.ready == 'true'
+        working-directory: backend
+        run: uv run --locked fastapi deploy

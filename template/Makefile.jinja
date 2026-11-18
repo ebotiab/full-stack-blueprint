@@ -1,0 +1,139 @@
+# Tasks for {{ project_name }}. `make help` lists them.
+#
+# Every target runs without prompts and ends with a reliable exit code; the multi-step ones
+# (setup, check, test) keep going after a failure and finish with a short summary
+# (scripts/steps.sh). The CI runs `make check-backend`{% if with_frontend %} and `make check-frontend`{% endif %}: the same steps.
+SHELL := bash
+.SHELLFLAGS := -euo pipefail -c
+.DEFAULT_GOAL := help
+MAKEFLAGS += --no-print-directory
+
+API_PORT ?= 8000
+{%- if with_frontend %}
+WEB_PORT ?= 5173
+{%- endif %}
+{%- if with_database %}
+# pytest's throwaway database (emptied by the tests). The CI sets its own.
+TEST_DATABASE_URL ?= postgresql://{{ package_name }}:{{ package_name }}@localhost:{{ postgres_port }}/{{ package_name }}_test
+{%- endif %}
+STEPS := bash scripts/steps.sh
+
+BACKEND_STEPS := \
+	"Python format (ruff format)::cd backend && uv run ruff format --check ." \
+	"Python lint (ruff check)::cd backend && uv run ruff check ." \
+	"Python types ({{ type_checker }})::cd backend && uv run {{ 'ty check' if type_checker == 'ty' else 'pyright' }}" \
+	"OpenAPI schema up to date (backend/openapi.json)::$(MAKE) openapi-check" \
+	"Python tests (pytest{{ ' + PostgreSQL' if with_database }})::cd backend && {% if with_database %}{{ env_prefix }}TEST_DATABASE_URL='$(TEST_DATABASE_URL)' {% endif %}uv run pytest"
+{%- if with_frontend %}
+
+FRONTEND_STEPS := \
+	"Visor format (oxfmt)::cd frontend && npm run --silent fmt:check" \
+	"Visor lint (oxlint)::cd frontend && npm run --silent lint" \
+	"Visor types (tsc)::cd frontend && npm run --silent typecheck" \
+	"API types up to date (frontend/src/api/schema.d.ts)::$(MAKE) schema-check" \
+	"Visor unit tests (Vitest)::cd frontend && npm run --silent test" \
+	"Visor build (vite build)::cd frontend && npx vite build" \
+	"Visor browser tests (Playwright)::cd frontend && npx playwright test"
+{%- endif %}
+
+.PHONY: help doctor setup dev check check-backend{% if with_frontend %} check-frontend e2e schema-check{% endif %} test fmt types openapi-check{% if with_database %} migrate db-up db-down{% endif %}
+
+help: ## List the tasks
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-15s %s\n", $$1, $$2}'
+
+doctor: ## Check the tools (uv{% if with_frontend %}, Node{% endif %}{% if with_database %}, Docker{% endif %}) and say how to fix what is missing
+	@bash scripts/doctor.sh
+
+setup: ## Install dependencies{% if with_database %}, start PostgreSQL, migrate{% endif %} and generate the API {% if with_frontend %}schema and types{% else %}schema{% endif %}
+	@bash scripts/doctor.sh
+	@$(STEPS) \
+		"Python dependencies (uv sync)::cd backend && uv sync" \
+{%- if with_frontend %}
+		"Visor dependencies (npm)::cd frontend && if [ -f package-lock.json ]; then npm ci; else npm install; fi" \
+		"Playwright browser (Chromium)::cd frontend && npx playwright install chromium" \
+{%- endif %}
+{%- if with_database %}
+		"PostgreSQL (docker compose)::$(MAKE) db-up" \
+		"Migrations::cd backend && uv run {{ project_slug }} migrate" \
+{%- endif %}
+		"API schema{% if with_frontend %} and types{% endif %}::$(MAKE) types"
+
+dev: ## Run the API (:$(API_PORT)){% if with_frontend %} and the visor (:$(WEB_PORT)){% endif %} with reload; Ctrl-C stops {% if with_frontend %}both{% else %}it{% endif %}
+{%- if with_database %}
+	@$(MAKE) migrate
+{%- endif %}
+{%- if with_frontend %}
+	@trap 'kill 0' EXIT INT TERM; \
+		(cd backend && uv run uvicorn {{ package_name }}.api.main:app --reload --port $(API_PORT)) & \
+		(cd frontend && API_PORT=$(API_PORT) npm run dev -- --port $(WEB_PORT) --strictPort) & \
+		wait
+{%- else %}
+	@cd backend && uv run uvicorn {{ package_name }}.api.main:app --reload --port $(API_PORT)
+{%- endif %}
+
+check: ## Everything the CI checks: format, lint, types, API contract, tests{% if with_frontend %}, build, Playwright{% endif %}
+{%- if with_database %}
+	@$(MAKE) db-up
+{%- endif %}
+	@$(STEPS) $(BACKEND_STEPS){% if with_frontend %} $(FRONTEND_STEPS){% endif %}
+
+check-backend: ## The backend half of `make check`
+{%- if with_database %}
+	@$(if $(CI),true,$(MAKE) db-up)
+{%- endif %}
+	@$(STEPS) $(BACKEND_STEPS)
+{%- if with_frontend %}
+
+check-frontend: ## The visor half of `make check`
+	@$(STEPS) $(FRONTEND_STEPS)
+{%- endif %}
+
+test: ## Run the tests: pytest{% if with_database %} against PostgreSQL{% endif %}{% if with_frontend %} and Vitest (Playwright: make e2e){% endif %}
+{%- if with_database %}
+	@$(if $(CI),true,$(MAKE) db-up)
+{%- endif %}
+	@$(STEPS) \
+		"Python tests (pytest)::cd backend && {% if with_database %}{{ env_prefix }}TEST_DATABASE_URL='$(TEST_DATABASE_URL)' {% endif %}uv run pytest"{% if with_frontend %} \
+		"Visor unit tests (Vitest)::cd frontend && npm run --silent test"{% endif %}
+{%- if with_frontend %}
+
+e2e: ## Run the Playwright browser tests (they answer /api themselves)
+	@cd frontend && npx playwright test
+{%- endif %}
+
+fmt: ## Format and auto-fix: ruff{% if with_frontend %} and oxfmt{% endif %}
+	@cd backend && uv run ruff format . && uv run ruff check --fix .
+{%- if with_frontend %}
+	@cd frontend && npm run --silent fmt
+{%- endif %}
+
+types: ## Regenerate backend/openapi.json{% if with_frontend %} and the visor's API types{% endif %} after changing the API
+	@cd backend && uv run {{ project_slug }} openapi --output openapi.json
+{%- if with_frontend %}
+	@cd frontend && npm run --silent types
+{%- endif %}
+
+openapi-check: ## Fail if backend/openapi.json does not match the code
+	@cd backend && uv run {{ project_slug }} openapi | diff -u openapi.json - \
+		|| { echo "backend/openapi.json is out of date: run 'make types' and commit the result."; exit 1; }
+{%- if with_frontend %}
+
+schema-check: ## Fail if frontend/src/api/schema.d.ts does not match backend/openapi.json
+	@cd frontend && npm run --silent types:print | diff -u src/api/schema.d.ts - \
+		|| { echo "frontend/src/api/schema.d.ts is out of date: run 'make types' and commit the result."; exit 1; }
+{%- endif %}
+{%- if with_database %}
+
+migrate: ## Apply pending SQL migrations to the local database
+	@$(MAKE) db-up
+	@cd backend && uv run {{ project_slug }} migrate
+
+db-up: ## Start the local PostgreSQL (docker compose) and create the test database
+	@docker compose up -d --wait postgres
+	@docker compose exec -T postgres psql -U {{ package_name }} -d {{ package_name }} -tAc \
+		"SELECT 1 FROM pg_database WHERE datname = '{{ package_name }}_test'" | grep -q 1 \
+		|| docker compose exec -T postgres createdb -U {{ package_name }} {{ package_name }}_test
+
+db-down: ## Stop the local PostgreSQL (the data stays in a Docker volume)
+	@docker compose stop postgres
+{%- endif %}

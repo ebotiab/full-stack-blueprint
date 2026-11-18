@@ -1,0 +1,69 @@
+# The template's own CI: generate projects and run their checks.
+#
+# Testing every combination of options would be 2 × 2 × 2 × 4 = 32 projects. Instead the matrix
+# below covers every value of every option at least once, plus the combinations with their own
+# code paths (Vercel with a database). Each job generates a project with
+# scripts/check-combination.sh, which runs the project's own `make setup` and `make check`:
+# formatting, lint, types, pytest against PostgreSQL (docker compose), Vitest, build, Playwright.
+#
+# When you add an option or a value, add it to at least one row and keep the table in the README.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  combination:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: defaults (render, pyright, visor, database)
+            data: ""
+          - name: railway + ty
+            data: --data api_deploy=railway --data type_checker=ty
+          - name: fastapi_cloud, API only, long name
+            data: >-
+              --data api_deploy=fastapi_cloud --data with_frontend=false
+              --data "project_name=Very Long Project Name For Formatting Checks"
+          - name: vercel + ty, no database
+            data: --data api_deploy=vercel --data type_checker=ty --data with_database=false
+          - name: vercel with database
+            data: --data api_deploy=vercel --data postgres_port=5544
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Copier
+        run: uv tool install "copier==9.19.1"
+      - name: Generate and check
+        run: scripts/check-combination.sh "$RUNNER_TEMP/project" ${{ matrix.data }}
+
+  update:
+    name: copier update applies cleanly
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - name: Copier
+        run: uv tool install "copier==9.19.1"
+      - name: Generate, change the template, update
+        run: scripts/check-update.sh "$RUNNER_TEMP/update"

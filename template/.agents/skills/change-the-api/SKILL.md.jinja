@@ -1,0 +1,30 @@
+---
+name: change-the-api
+description: Add or change an API route in {{ project_name }} end to end — {% if with_database %}migration, {% endif %}route, pytest test, regenerated OpenAPI schema{% if with_frontend %}, typed client in the visor and a Playwright test{% endif %}. Use it for any task that changes what the API returns or accepts.
+---
+
+# Change the API
+
+The contract between the API and its clients is `backend/openapi.json`, generated from the code.
+Work outward from the database to the visor, so each layer is typed by the one before it.
+{%- if with_database %}
+
+1. **Schema.** If the data changes, add `backend/src/{{ package_name }}/db/migrations/NNNN_short_name.sql`
+   (next number; plain SQL; one concern per file) and run `make migrate`. Never edit an applied migration.
+{%- endif %}
+{%- set n = 2 if with_database else 1 %}
+{{ n }}. **Route.** In `backend/src/{{ package_name }}/api/routes.py` (or a new module included in `api/main.py`
+   under the `/api` prefix): a Pydantic response model, a typed handler{% if with_database %}, SQL with
+   `$1` parameters through the `ConnectionDep` connection (never string formatting){% endif %}.
+{{ n + 1 }}. **Test.** A pytest test in `backend/tests/` for the new behaviour, including its error cases.
+{%- if with_database %} Tests that need
+   PostgreSQL use the `db_url`/`db_conn`/`app_settings` fixtures from `tests/conftest.py`.{% endif %}
+{{ n + 2 }}. **Contract.** `make types`. Review the diff of `backend/openapi.json`: it is what clients see.
+{%- if with_frontend %}
+{{ n + 3 }}. **Visor.** Call it with `api.GET('/api/…')` / `api.POST(…)` from `frontend/src/api/client.ts`; the types
+   come from `schema.d.ts`, so a wrong path or field fails `make check`. Add or update a Playwright
+   test in `frontend/e2e/` that mocks the route with `page.route`.
+{{ n + 4 }}. **Check and ship.** `make check`, then follow the `ship-a-change` skill.
+{%- else %}
+{{ n + 3 }}. **Check and ship.** `make check`, then follow the `ship-a-change` skill.
+{%- endif %}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["fra1"],
+{%- if with_database %}
+  "git": { "deploymentEnabled": { "main": false } },
+{%- endif %}
+  "services": {
+{%- if with_frontend %}
+    "frontend": {
+      "root": "frontend/",
+      "framework": "vite",
+      "buildCommand": "npm run build",
+      "outputDirectory": "dist",
+      "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+    },
+{%- endif %}
+    "backend": {
+      "root": "backend/",
+      "entrypoint": "main:app"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "backend" } }{% if with_frontend %},
+    { "source": "/(.*)", "destination": { "service": "frontend" } }{% endif %}
+  ]
+}

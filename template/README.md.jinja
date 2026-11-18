@@ -1,0 +1,105 @@
+# {{ project_name }}
+
+{{ description }}
+
+- **API**: FastAPI on Python 3.13{% if with_database %}, PostgreSQL through asyncpg with plain SQL migrations{% endif %}, traces in Logfire.
+{%- if with_frontend %}
+- **Visor**: Vite + React + TypeScript, calling the API through a client typed from its OpenAPI schema.
+{%- endif %}
+- **Deploy**: {% if api_deploy == 'render' %}the API on Render{% elif api_deploy == 'railway' %}the API on Railway{% elif api_deploy == 'fastapi_cloud' %}the API on FastAPI Cloud{% else %}{% if with_frontend %}visor and API together on Vercel{% else %}the API on Vercel{% endif %}{% endif %}{% if with_frontend and api_deploy != 'vercel' %}, the visor on Vercel{% endif %}{% if with_database %}, the database on Neon{% endif %}.
+
+Working with a coding agent? It reads [AGENTS.md](AGENTS.md), which has the layout, the commands
+and the conventions; this README covers the same ground for people.
+
+## Start from scratch
+
+You need [uv](https://docs.astral.sh/uv/){% if with_frontend %}, [Node 24](https://nodejs.org){% endif %}{% if with_database %} and [Docker](https://docs.docker.com/get-docker/){% endif %}. Then:
+
+```bash
+make doctor   # checks the tools and says how to fix what is missing
+make setup    # installs everything{% if with_database %}, starts PostgreSQL on :{{ postgres_port }}, migrates{% endif %}
+make dev      # API on http://127.0.0.1:8000/api{% if with_frontend %}, visor on http://127.0.0.1:5173{% endif %}
+```
+
+The API documentation is at http://127.0.0.1:8000/docs while `make dev` runs. Nothing needs
+credentials locally: Logfire sends nothing without a token{% if with_database %}, and the database is the local container{% endif %}.
+Optional local settings: `backend/.env.example`{% if with_frontend %} and `frontend/.env.example`{% endif %}.
+
+## Everyday commands
+
+| Command | What it does |
+| --- | --- |
+| `make check` | Formatting, lint, types, API contract, tests{% if with_frontend %}, build and Playwright{% endif %}: what the CI runs. |
+| `make test` | pytest{% if with_frontend %} and Vitest; `make e2e` runs Playwright{% endif %}. |
+| `make fmt` | Formats and auto-fixes the code. |
+| `make types` | Regenerates the OpenAPI schema{% if with_frontend %} and the visor's API types{% endif %} after an API change. |
+{%- if with_database %}
+| `make migrate` | Applies new migrations (`backend/src/{{ package_name }}/db/migrations/`). |
+{%- endif %}
+| `make help` | Lists every target. |
+
+## Deploy
+
+Pushing to `main` deploys; the CI must pass first. These one-time steps connect the services.
+None of them is needed to develop locally.
+{%- if with_database %}
+
+**Database (Neon).** Create a project at https://console.neon.tech in an EU region (Frankfurt,
+`aws-eu-central-1`). Copy two connection strings from "Connect": the **direct** one, and the
+**pooled** one (host with `-pooler`).
+{%- endif %}
+
+**Logfire.** Create a project at https://logfire.pydantic.dev. Create a **write token** (Settings →
+Write tokens) for the API's `LOGFIRE_TOKEN`, and a **read token** (Settings → Read tokens) for
+`{{ project_slug }} obs status`: save it in `~/.config/{{ project_slug }}/logfire-read-token` or export it as `LOGFIRE_READ_TOKEN`.
+{%- if with_frontend %} For browser errors,
+create a frontend application in the project and use its restricted token as `VITE_LOGFIRE_TOKEN` in Vercel.{% endif %}
+{%- if api_deploy == 'render' %}
+
+**API (Render).** Dashboard → New → Blueprint → this repository. Render reads `render.yaml`
+(Docker, Frankfurt, free plan, health check `/api/healthz`) and asks for the secrets: {% if with_database %}`DATABASE_URL`
+(Neon, direct) and {% endif %}`LOGFIRE_TOKEN`. Its URL will be `https://{{ project_slug }}-api.onrender.com` unless the name
+is taken.{% if with_database %} Migrations run at start-up. The free plan sleeps after 15 idle minutes; the first request then takes about a minute.{% endif %}
+{%- elif api_deploy == 'railway' %}
+
+**API (Railway).** Install the [Railway CLI](https://docs.railway.com/cli), then from the
+repository root: `npm install --prefix .railway`, `railway login`, `railway link` (pick or create
+the project), `railway config plan` and `railway config apply`. Then, in the Railway dashboard,
+set {% if with_database %}`DATABASE_URL` (Neon, direct; or add a Railway PostgreSQL and reference it) and {% endif %}`LOGFIRE_TOKEN`,
+generate a public domain for the service, and turn on "Wait for CI" in its settings.{% if with_database %} Migrations run as the pre-deploy command.{% endif %}
+{%- elif api_deploy == 'fastapi_cloud' %}
+
+**API (FastAPI Cloud).** `cd backend && uv run fastapi login`, then `uv run fastapi deploy` once to
+create the app (name it `{{ project_slug }}`: its URL becomes `https://{{ project_slug }}.fastapicloud.dev`), then `uv run fastapi cloud setup-ci --secrets-only` to store `FASTAPI_CLOUD_TOKEN` and
+`FASTAPI_CLOUD_APP_ID` in GitHub (`.github/workflows/deploy-api.yml` deploys on every green `main`).
+Set the secrets: {% if with_database %}`uv run fastapi cloud env set --secret DATABASE_URL "<Neon direct URL>"` and {% endif %}`uv run fastapi cloud env set --secret LOGFIRE_TOKEN "<write token>"`,
+plus `uv run fastapi cloud env set {{ env_prefix }}ENVIRONMENT production`.{% if with_database %} Migrations run at start-up.{% endif %}
+{%- elif api_deploy == 'vercel' %}
+
+**Visor and API (Vercel).** Import the repository at https://vercel.com/new (root directory: the
+repository root; Vercel reads the services from `vercel.json`, region `fra1`). Add the
+environment variables {% if with_database %}`DATABASE_URL` (Neon, **pooled**) and {% endif %}`LOGFIRE_TOKEN` for Production and Preview.
+{%- if with_database %}
+Production deploys come from `.github/workflows/deploy.yml` (migrate, then deploy), not from the
+Git integration: run `vercel link` locally and add the repository secrets `DATABASE_URL` (Neon,
+**direct**), `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` (the last two are in `.vercel/project.json`).
+{%- endif %}
+{%- endif %}
+{%- if with_frontend and api_deploy != 'vercel' %}
+
+**Visor (Vercel).** Import the repository at https://vercel.com/new with root directory
+`frontend`. `frontend/vercel.json` proxies `/api` to `{{ api_public_url }}`: if the API's real URL is
+different, change it there. Web Analytics: turn it on in the project (no cookies).
+{%- endif %}
+
+**GitHub.** Protect `main`: require pull requests and the checks `Backend` and `Frontend`, and
+allow auto-merge (Settings → General → "Allow auto-merge").
+
+**After a deploy.** `cd backend && uv run {{ project_slug }} obs status --commit <sha> --wait 15` says when the commit is live
+and lists any error since.
+
+## Template updates
+
+This project was generated with [Copier](https://copier.readthedocs.io) from `full-stack-blueprint`.
+To take later improvements: commit or stash your work, run `copier update --defaults`, resolve
+conflicts, then `make setup && make check`.

@@ -1,0 +1,49 @@
+"""Settings read from the environment (and from backend/.env). Everything works locally without credentials."""
+
+from __future__ import annotations
+
+from functools import lru_cache
+
+from pydantic import AliasChoices, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: Prefix of this project's environment variables.
+PREFIX = "{{ env_prefix }}"
+{%- if with_database %}
+#: The docker-compose PostgreSQL (make db-up).
+LOCAL_DATABASE_URL = "postgresql://{{ package_name }}:{{ package_name }}@localhost:{{ postgres_port }}/{{ package_name }}"
+{%- endif %}
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix=PREFIX, env_file=".env", extra="ignore")
+
+    #: `local`, `preview` or `production`. Logfire groups traces by it.
+    environment: str = Field(
+        default="local",
+        validation_alias=AliasChoices(f"{PREFIX}ENVIRONMENT", "LOGFIRE_ENVIRONMENT"),
+    )
+{%- if with_database %}
+    #: In production the platform (or you) sets DATABASE_URL; locally it is the docker-compose container.
+    database_url: str = Field(
+        default=LOCAL_DATABASE_URL,
+        validation_alias=AliasChoices(f"{PREFIX}DATABASE_URL", "DATABASE_URL"),
+    )
+{%- if api_deploy == 'vercel' %}
+    #: Vercel runs the API as functions: each instance keeps a small pool, and the connection goes
+    #: through Neon's pooler (the `-pooler` host), which does the real pooling.
+    db_pool_min_size: int = 0
+    db_pool_max_size: int = 4
+{%- else %}
+    db_pool_min_size: int = 1
+    db_pool_max_size: int = 8
+{%- endif %}
+    #: Apply pending migrations when the API starts. On by default where the platform has no
+    #: pre-deploy step ({% if api_deploy in ['render', 'fastapi_cloud'] %}this target{% else %}not this target: {{ 'Railway runs them as preDeploy' if api_deploy == 'railway' else 'the deploy workflow runs them before Vercel deploys' }}{% endif %}).
+    migrate_on_start: bool = {{ 'True' if api_deploy in ['render', 'fastapi_cloud'] else 'False' }}
+{%- endif %}
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

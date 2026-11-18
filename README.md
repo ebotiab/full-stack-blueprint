@@ -142,3 +142,7 @@ scripts/check-update.sh /tmp/fsb-update                                  # copie
 
 The CI (`.github/workflows/ci.yml`) runs five combinations that cover every value of every option,
 plus the update check. Agents working on the template read [AGENTS.md](AGENTS.md).
+
+## License
+
+[MIT](LICENSE). It covers the template itself; projects generated from it are yours to license as you wish.

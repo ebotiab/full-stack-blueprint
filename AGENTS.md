@@ -5,6 +5,13 @@ visor, optional PostgreSQL, and the deploy files of one target (Render, FastAPI 
 Vercel). People start with the [README](README.md); this file is for coding agents working on or
 with the template. Everything here is in English: code, docs, commit messages and pull requests.
 
+**Design principle.** The template is built for development led by coding agents: the developer
+directs and an agent such as Claude Code writes most of the code. Keep every change in that spirit:
+explicit code an agent can read and verify over abstraction that saves a person typing (hence
+asyncpg and plain SQL migrations, no ORM), commands that never prompt and end with a reliable exit
+code, and contracts the CI checks (types, OpenAPI schema, generated client). The README section
+"Built for development with coding agents" explains each choice.
+
 ## Using the template (generating or updating a project)
 
 Follow the `new-project` skill (`.agents/skills/new-project/SKILL.md`): it covers generating

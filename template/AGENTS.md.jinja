@@ -89,6 +89,9 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
 - **Tests.** Every new rule or route gets a pytest test; every visible behaviour of the visor a
   Playwright test{% if with_frontend %} (mocking `/api`){% endif %}; plain logic a unit test next to it.
 {%- if with_database %}
+- **SQL, no ORM.** Queries are plain SQL run with asyncpg, with `$1` parameters (never string
+  formatting), next to the code that uses them; rows become Pydantic models right there. Write the
+  SQL yourself and do not add an ORM or a query builder: explicit SQL is easier to review and test.
 - **Migrations.** A schema change is a new file `backend/src/{{ package_name }}/db/migrations/NNNN_short_name.sql`
   (next number). Never edit an applied migration: the runner stores checksums and refuses changed files.
   The runner is idempotent and takes a PostgreSQL advisory lock, so concurrent starts are safe.

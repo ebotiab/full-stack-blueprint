@@ -5,6 +5,27 @@ TypeScript visor, ready to work on from the first minute: by people, and above a
 agents (Claude Code, Codex, Cursor…), which get an `AGENTS.md`, skills and a `Makefile` whose
 targets never prompt and always end with a clear exit code and summary.
 
+## Built for development with coding agents
+
+The template assumes that you direct the work and a coding agent writes most of the code. Every
+choice follows from that: code an agent can read and verify beats abstraction that saves a person
+typing, and every check gives a clear verdict the agent can act on without asking.
+
+- **SQL, no ORM.** Queries are plain SQL run with asyncpg, next to the code that uses them, and a
+  schema change is a numbered `.sql` file. An ORM saves people from writing SQL and mapping rows by
+  hand; for an agent that work is cheap, while an ORM adds a second language and queries generated
+  out of sight. Plain SQL is what an agent writes, reviews and tests most reliably.
+- **Contracts that machines check.** Types on both sides, an OpenAPI schema committed with the
+  code, TypeScript types generated from it and tests against a real PostgreSQL: when any of them
+  drifts the CI fails, so a mistake shows up as a failed check instead of a bug in production.
+- **Commands that never ask.** Every `make` target runs without prompts and ends with a reliable
+  exit code and a summary of what passed and failed.
+- **Instructions in the repository.** Each project gets an `AGENTS.md` (Claude Code reads it
+  through `CLAUDE.md`; Codex, Cursor and others read it directly) and skills for its usual tasks,
+  such as changing the API or shipping a change.
+- **Production the agent can check.** `obs status` reads the traces in Logfire and tells whether a
+  commit is deployed and serving without errors, so a task ends when production confirms it.
+
 What a generated project contains:
 
 - **API** (`backend/`): Python 3.14 with uv and uv_build, FastAPI, asyncpg without an ORM and a

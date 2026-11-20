@@ -18,8 +18,8 @@ What a generated project contains:
 - **Deploy**: the API on Render (default), FastAPI Cloud, Railway or Vercel; the visor on Vercel.
   Only the chosen target's files are generated, in an EU region wherever the platform has one.
 - **Repository**: a CI that skips the half a pull request does not touch and fails when the
-  OpenAPI schema or the generated types are stale, grouped Dependabot updates, VS Code settings
-  that match the checks.
+  OpenAPI schema or the generated types are stale, grouped Dependabot updates, a 7-day wait before
+  any new release is installed (Dependabot, uv, npm), VS Code settings that match the checks.
 
 ## Generate a project
 

@@ -15,7 +15,10 @@ if command -v git >/dev/null 2>&1; then ok "git $(git --version | awk '{print $3
 else bad "git is not installed" "install it from https://git-scm.com/downloads"; fi
 
 if command -v uv >/dev/null 2>&1; then
-  ok "uv $(uv --version | awk '{print $2}') (installs Python 3.13 by itself when needed)"
+  uv_version=$(uv --version | awk '{print $2}')
+  # 0.9.17 reads the relative `exclude-newer = "7 days"` of backend/pyproject.toml.
+  if version_at_least "$uv_version" "0.9.17"; then ok "uv $uv_version (installs the project's Python by itself when needed)"
+  else bad "uv $uv_version is too old (0.9.17 or newer is needed)" "uv self update  (or: brew upgrade uv)"; fi
 else
   bad "uv is not installed" "curl -LsSf https://astral.sh/uv/install.sh | sh  (or: brew install uv)"
 fi
@@ -28,8 +31,14 @@ if command -v node >/dev/null 2>&1; then
 else
   bad "node is not installed" "install Node 24 LTS: https://nodejs.org (or: nvm install 24 / brew install node@24)"
 fi
-if command -v npm >/dev/null 2>&1; then ok "npm $(npm --version)"
-else bad "npm is not installed" "it comes with Node: reinstall Node 24 LTS from https://nodejs.org"; fi
+if command -v npm >/dev/null 2>&1; then
+  npm_version=$(npm --version)
+  # 11.10 applies `min-release-age` (frontend/.npmrc); older versions ignore it with a warning.
+  if version_at_least "$npm_version" "11.10.0"; then ok "npm $npm_version"
+  else bad "npm $npm_version is too old (11.10 or newer applies the 7-day wait in frontend/.npmrc)" "npm install -g npm@11  (or install Node 24 LTS: https://nodejs.org)"; fi
+else
+  bad "npm is not installed" "it comes with Node: reinstall Node 24 LTS from https://nodejs.org"
+fi
 {%- endif %}
 {%- if with_database %}
 

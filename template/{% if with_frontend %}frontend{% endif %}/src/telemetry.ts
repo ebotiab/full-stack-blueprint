@@ -1,7 +1,7 @@
 // Browser errors to Logfire, only in production builds that have a token (VITE_LOGFIRE_TOKEN, a
 // restricted token of a Logfire *frontend application*, set in the Vercel project). Without a
 // token nothing is loaded or sent, so development and tests never report anything.
-// Options follow @pydantic/logfire-browser 0.39 (beta): re-read its docs when upgrading.
+// Options follow @pydantic/logfire-browser 0.35 (beta): re-read its docs when upgrading.
 
 const token = import.meta.env.VITE_LOGFIRE_TOKEN as string | undefined
 // The US region by default; EU projects use https://logfire-eu.pydantic.dev.

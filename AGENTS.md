@@ -40,8 +40,9 @@ Neon or Logfire without the user's explicit go-ahead.
 - **Generated code must pass its own checks** for every combination: ruff format and lint, pyright
   and ty, pytest, oxfmt, oxlint, tsc, Vitest, build, Playwright. Watch Jinja whitespace
   (`{%- … %}` / `{% … -%}`) and line length: a long project name must not push a rendered line past
-  100 characters (the CI has a long-name combination). Prefer code whose line length does not
-  depend on answers.
+  100 characters (the CI has a long-name combination). A mid-length name matters too: ruff format
+  rewraps a line just over 100 characters when it fits once wrapped (the CI has a mid-length-name
+  combination). Prefer code whose line length does not depend on answers.
 - **Before a pull request**, run `scripts/check-combination.sh` for the combinations your change
   touches (at least the defaults), and `scripts/check-update.sh` when you change file layout.
   They take a few minutes each: run them in the background, once, at the end.

@@ -33,8 +33,12 @@ jobs:
         include:
           - name: defaults (render, pyright, visor, database)
             data: ""
-          - name: railway + ty
-            data: --data api_deploy=railway --data type_checker=ty
+          # A mid-length name: lines just over 100 characters that fit once wrapped are the ones
+          # ruff format rewrites (the long name below is too long for that to happen).
+          - name: railway + ty, mid-length name
+            data: >-
+              --data api_deploy=railway --data type_checker=ty
+              --data "project_name=Medium Name Check"
           - name: fastapi_cloud, API only, long name
             data: >-
               --data api_deploy=fastapi_cloud --data with_frontend=false

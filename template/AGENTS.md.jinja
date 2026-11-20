@@ -79,7 +79,8 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
 - **Merge on green.** When the pull request is complete (final description, nothing left to
   decide), mark it with `gh pr merge --squash --auto`: GitHub merges it as soon as the required
   checks `Backend` and `Frontend` pass, and never if they fail. If the CI fails, fix and push; the
-  mark stays. This holds only while `main` requires those checks (README, "Deploy"): the
+  mark stays. If the checks already passed, `--auto` refuses ("clean status"): merge with
+  `gh pr merge --squash`. This holds only while `main` requires those checks (README, "Deploy"): the
   `ship-a-change` skill looks before marking and, on an unprotected `main`, waits for the CI itself.
 - **Merging is deploying.** A push to `main` deploys{% if api_deploy == 'render' %} the API (Render waits for the CI){% elif api_deploy == 'railway' %} the API (Railway){% elif api_deploy == 'fastapi_cloud' %} the API (`deploy-api.yml`, after the CI){% elif api_deploy == 'vercel' %} {% if with_database %}through `deploy.yml` (migrate, then deploy){% else %}through Vercel's Git integration{% endif %}{% endif %}{% if with_frontend and api_deploy != 'vercel' %} and the visor (Vercel){% endif %}. Nothing is deployed by hand.
 - **Check production after merging.** A task that touches `backend/` ends when production runs the

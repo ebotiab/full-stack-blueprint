@@ -66,5 +66,6 @@ Neon or Logfire without the user's explicit go-ahead.
   `fastapi_cloud` when it has an EU region, a Dockerfile or pre-start command, rollbacks and
   usage-based billing. Each is a one-line change in `copier.yml` plus the README section.
 - **Pull requests**: small, one task each, a description with what, why, what to review and which
-  checks ran; `gh pr merge --squash --auto` once complete. Releases are git tags (`vX.Y.Z`):
+  checks ran; `gh pr merge --squash --auto` once complete (if the CI already passed, `--auto`
+  refuses with "clean status": use `gh pr merge --squash`). Releases are git tags (`vX.Y.Z`):
   `copier update` takes the latest tag by default.

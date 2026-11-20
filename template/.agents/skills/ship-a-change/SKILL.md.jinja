@@ -22,7 +22,9 @@ This is the order.
    requires its checks, and merging is deploying, so look first:
    `gh api 'repos/{owner}/{repo}/branches/main' --jq '.protection.required_status_checks.contexts'`
    - It lists `Backend` and `Frontend`: `gh pr merge --squash --auto`. If the CI fails, read the
-     failing job (`gh run view --log-failed`), fix, push; the mark stays.
+     failing job (`gh run view --log-failed`), fix, push; the mark stays. If it answers "Pull
+     request is in clean status", the CI already passed and there is nothing to wait for:
+     `gh pr merge --squash`.
    - It does not (`main` is not protected yet): wait for the CI yourself,
      `gh pr checks --watch --fail-fast && gh pr merge --squash` (if it says no checks are reported
      yet, run it again in a moment), and tell the user to protect `main` (README, "Deploy").

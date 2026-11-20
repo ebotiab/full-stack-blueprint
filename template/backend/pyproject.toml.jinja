@@ -51,12 +51,16 @@ dev = [
 [tool.uv]
 exclude-newer = "7 days"
 
-[tool.pytest.ini_options]
+# pytest 9's own table (typed values, not ini strings).
+[tool.pytest]
+# Unknown markers and configuration keys, an xfail that passes and duplicate parametrize ids are
+# errors, not warnings.
+strict = true
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 # Logfire's pytest plugin only activates with CI=true and a LOGFIRE_TOKEN; tests never send data.
-addopts = "--no-logfire"
+addopts = ["--no-logfire"]
 filterwarnings = ["error::DeprecationWarning:{{ package_name }}.*"]
 
 [tool.ruff]

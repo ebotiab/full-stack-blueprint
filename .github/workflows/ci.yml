@@ -47,8 +47,13 @@ jobs:
               --data "project_name=Very Long Project Name For Formatting Checks Up To The Cap"
           - name: vercel + ty, no database
             data: --data api_deploy=vercel --data type_checker=ty --data with_database=false
+          # Also a long description: it lands in the visor's index.html, which oxfmt formats, and
+          # in Python strings. (The name is a required check on main: keep it.)
           - name: vercel with database
-            data: --data api_deploy=vercel --data postgres_port=5544
+            data: >-
+              --data api_deploy=vercel --data postgres_port=5544
+              --data "description=A long one-sentence description that keeps going well past
+              the width at which oxfmt would wrap an HTML line."
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.3

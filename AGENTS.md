@@ -45,7 +45,9 @@ Neon or Logfire without the user's explicit go-ahead.
   `copier.yml`). Any length up to it matters too: ruff format rewraps a line just over 100
   characters when it fits once wrapped (the CI's name-length check tries them all). Prefer code
   whose line length does not depend on answers: an f-string over a constant such as `PREFIX`
-  instead of the answer written into the line.
+  instead of the answer written into the line. oxfmt rewraps the visor's HTML as well, and joins a
+  pre-wrapped element back when it fits: an HTML line that must hold an answer goes after a
+  `<!-- prettier-ignore -->` comment, as in `index.html` (the CI has a long description).
 - **Before a pull request**, run `scripts/check-combination.sh` for the combinations your change
   touches (at least the defaults), `scripts/check-update.sh` when you change file layout, and
   `scripts/check-name-lengths.sh` when you change a Python line that contains an answer.

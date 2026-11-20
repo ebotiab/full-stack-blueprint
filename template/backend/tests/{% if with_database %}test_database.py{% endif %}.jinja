@@ -18,10 +18,6 @@ from {{ package_name }}.db.migrate import (
 )
 from {{ package_name }}.db.pool import connect
 
-from .conftest import requires_db
-
-pytestmark = requires_db
-
 
 async def test_migrate_applies_everything_once(db_conn: asyncpg.Connection) -> None:
     versions = [m.version for m in list_migrations()]

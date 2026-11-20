@@ -31,6 +31,7 @@ Neon or Logfire without the user's explicit go-ahead.
   `make setup` and `make check`. `scripts/check-update.sh`: checks that `copier update` applies a
   template change cleanly. `scripts/check-name-lengths.sh`: generates the backend for every
   package-name length (1 to 58) and runs ruff on all of them.
+- `.github/dependabot.yml`: weekly updates of the actions this repository's CI uses.
 - `.github/workflows/ci.yml`: five combinations that cover every value of every option, the
   name-length check and the update check.
 - `.agents/skills/`: this repository's skills (`.claude/skills` links here).
@@ -60,6 +61,9 @@ Neon or Logfire without the user's explicit go-ahead.
   Generated projects only install releases that are at least 7 days old (uv `exclude-newer`, npm
   `min-release-age`, Dependabot `cooldown`): a new lower bound or range must name a version
   published at least a week ago, or `make setup` cannot lock.
+  GitHub Actions are pinned to a commit with the release in a comment (`uses: owner/action@<sha>
+  # vX.Y.Z`), here and in the generated workflows. Dependabot updates this repository's CI
+  (`.github/dependabot.yml`); make the same change in `template/.github/workflows/*.jinja`.
   Check the current docs of a platform before changing its deploy files; Railway's
   `railway.json` is deprecated (cutoff 2026-12-01), hence `.railway/railway.ts`.
 - **Defaults that will change**: `type_checker` becomes `ty` at ty 1.0; `api_deploy` becomes

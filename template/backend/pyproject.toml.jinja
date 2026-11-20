@@ -3,7 +3,7 @@ name = "{{ project_slug }}"
 version = "0.1.0"
 description = "{{ description }}"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
 {%- if with_database %}
     "asyncpg>=0.32.0",
@@ -55,7 +55,7 @@ filterwarnings = ["error::DeprecationWarning:{{ package_name }}.*"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -63,7 +63,7 @@ ignore = ["E501"]
 {%- if type_checker == 'ty' %}
 
 [tool.ty.environment]
-python-version = "3.13"
+python-version = "3.14"
 
 [tool.ty.src]
 include = ["src", "tests"]
@@ -71,7 +71,7 @@ include = ["src", "tests"]
 
 # Same level as Pylance in VS Code ("standard"): what passes here shows no warnings in the editor.
 [tool.pyright]
-pythonVersion = "3.13"
+pythonVersion = "3.14"
 venvPath = "."
 venv = ".venv"
 typeCheckingMode = "standard"

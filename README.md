@@ -7,7 +7,7 @@ targets never prompt and always end with a clear exit code and summary.
 
 What a generated project contains:
 
-- **API** (`backend/`): Python 3.13 with uv and uv_build, FastAPI, asyncpg without an ORM and a
+- **API** (`backend/`): Python 3.14 with uv and uv_build, FastAPI, asyncpg without an ORM and a
   small packaged SQL migration runner (idempotent, PostgreSQL advisory lock, checksums),
   pydantic-settings, a Typer CLI (`migrate`, `openapi`, `obs status`), Logfire (works without a
   token), pytest against a real PostgreSQL, ruff, and pyright or ty.

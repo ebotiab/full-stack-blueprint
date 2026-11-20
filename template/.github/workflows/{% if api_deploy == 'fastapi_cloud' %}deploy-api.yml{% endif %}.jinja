@@ -46,7 +46,7 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.3
         if: steps.secrets.outputs.ready == 'true'
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       # FastAPI Cloud does not expose the deployed commit to the app: this file carries it
       # (observability.deployed_commit reads it). It is git-ignored, but `fastapi deploy`
       # uploads it because it is written here, in the uploaded folder.

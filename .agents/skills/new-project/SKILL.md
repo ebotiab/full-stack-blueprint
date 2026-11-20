@@ -11,8 +11,9 @@ usually the project name, whether it needs the visor and the database, and the d
 
 ## Generate
 
-1. Make sure Copier is installed: `uv tool install copier` (9.7 or newer: without a default a
-   question fails instead of hanging; every question here has one).
+1. Make sure Copier is installed: `uv tool install copier` (9.8 or newer, which `copier.yml`
+   requires: it validates the derived names under `--defaults`, and a question without a default
+   fails instead of hanging; every question here has one).
 2. Generate without prompts, overriding only what differs from the defaults:
 
    ```bash

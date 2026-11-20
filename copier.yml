@@ -9,7 +9,9 @@
 # There are no `_tasks`: nothing runs at generation time, so `--trust` is never needed. The
 # generated `Makefile` does the setup (`make setup`).
 
-_min_copier_version: "9.7.0"
+# 9.8.0 or newer: older versions skip the validators of derived answers under `--defaults`, so a
+# package name that is a standard-library module or too long would get through.
+_min_copier_version: "9.8.0"
 _subdirectory: template
 _answers_file: .copier-answers.yml
 # .claude/skills is a symlink to .agents/skills (one canonical folder for every agent).

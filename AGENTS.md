@@ -65,6 +65,9 @@ Neon or Logfire without the user's explicit go-ahead.
 - **Defaults that will change**: `type_checker` becomes `ty` at ty 1.0; `api_deploy` becomes
   `fastapi_cloud` when it has an EU region, a Dockerfile or pre-start command, rollbacks and
   usage-based billing. Each is a one-line change in `copier.yml` plus the README section.
+  Two versions are held back: Python 3.15 until every deploy target runs it (Vercel's Python
+  runtime, FastAPI Cloud) and PostgreSQL 19 until its first minor release and Neon offer it. The
+  same README section lists where each version is written.
 - **Pull requests**: small, one task each, a description with what, why, what to review and which
   checks ran; `gh pr merge --squash --auto` once complete (if the CI already passed, `--auto`
   refuses with "clean status": use `gh pr merge --squash`). Releases are git tags (`vX.Y.Z`):

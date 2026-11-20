@@ -8,8 +8,10 @@ services:
       POSTGRES_USER: {{ package_name }}
       POSTGRES_PASSWORD: {{ package_name }}
       POSTGRES_DB: {{ package_name }}
+    # Published on 127.0.0.1 only: the password is the project's name, so nothing outside this
+    # machine should reach the database.
     ports:
-      - "{{ postgres_port }}:5432"
+      - "127.0.0.1:{{ postgres_port }}:5432"
     # From PostgreSQL 18 on, the volume goes on /var/lib/postgresql (the data is in 18/docker inside
     # it). One volume per major version: PostgreSQL does not start on another major's data, so a new
     # major starts empty and `make setup` migrates it. `docker volume ls` lists the old ones.

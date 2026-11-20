@@ -14,7 +14,7 @@ What a generated project contains:
 - **Visor** (`frontend/`, optional): Vite 8, React 19, TypeScript 7, a client typed from the API's
   OpenAPI schema (`openapi-typescript` + `openapi-fetch`), oxlint, oxfmt (exact version), Vitest,
   Playwright, `@pydantic/logfire-browser` and Vercel Web Analytics.
-- **Database** (optional): PostgreSQL 17 in docker-compose for development; Neon in production.
+- **Database** (optional): PostgreSQL 18 in docker-compose for development; Neon in production.
 - **Deploy**: the API on Render (default), FastAPI Cloud, Railway or Vercel; the visor on Vercel.
   Only the chosen target's files are generated, in an EU region wherever the platform has one.
 - **Repository**: a CI that skips the half a pull request does not touch and fails when the

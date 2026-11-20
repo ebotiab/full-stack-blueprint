@@ -9,7 +9,7 @@ answers and is only changed by `copier update` (see "Template updates").
 
 ## Where things are
 
-- `backend/`: the API. Python 3.14 with uv, FastAPI, {% if with_database %}asyncpg (no ORM), {% endif %}pydantic-settings, Typer, Logfire.
+- `backend/`: the API. Python 3.14 (`.python-version`) with uv, FastAPI, {% if with_database %}asyncpg (no ORM), {% endif %}pydantic-settings, Typer, Logfire.
   - `src/{{ package_name }}/api/`: the app (`main.py`) and its routes (`routes.py`). Every route is under `/api`.
 {%- if with_database %}
   - `src/{{ package_name }}/db/`: the connection pool (`pool.py`), the migration runner (`migrate.py`) and the SQL migrations (`migrations/NNNN_name.sql`).

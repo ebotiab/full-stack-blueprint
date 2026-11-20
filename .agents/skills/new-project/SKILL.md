@@ -55,7 +55,7 @@ Every target:
 
 - **Logfire**: a project; a write token as `LOGFIRE_TOKEN` where the API runs; a read token in
   `~/.config/<slug>/logfire-read-token` for `obs status`; with a visor, a frontend application
-  token as `VITE_LOGFIRE_TOKEN` in Vercel.
+  and regional URL as `VITE_LOGFIRE_TOKEN` and `VITE_LOGFIRE_BASE_URL` in Vercel.
 - **Neon** (with a database): a project in an EU region; the direct connection string as
   `DATABASE_URL` (the pooled `-pooler` one on Vercel).
 - **GitHub**: branch protection with `Backend` and `Frontend`, auto-merge allowed.

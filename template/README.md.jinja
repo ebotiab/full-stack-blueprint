@@ -53,7 +53,8 @@ None of them is needed to develop locally.
 Write tokens) for the API's `LOGFIRE_TOKEN`, and a **read token** (Settings → Read tokens) for
 `{{ project_slug }} obs status`: save it in `~/.config/{{ project_slug }}/logfire-read-token` or export it as `LOGFIRE_READ_TOKEN`.
 {%- if with_frontend %} For browser errors,
-create a frontend application in the project and use its restricted token as `VITE_LOGFIRE_TOKEN` in Vercel.{% endif %}
+create a frontend application in the project (Frontend → Applications) and set the two values it generates in Vercel:
+its restricted token as `VITE_LOGFIRE_TOKEN` and the URL of the project's region as `VITE_LOGFIRE_BASE_URL`.{% endif %}
 {%- if api_deploy == 'render' %}
 
 **API (Render).** Dashboard → New → Blueprint → this repository. Render reads `render.yaml`

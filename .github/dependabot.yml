@@ -1,0 +1,18 @@
+# Updates of the actions in this repository's own CI (.github/workflows/ci.yml), which are pinned
+# to a commit with the release in a comment. Dependabot does not read the workflows of the
+# generated project (template/.github/workflows/*.jinja): when it updates an action here, make the
+# same change there (AGENTS.md, "Versions").
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns: ["*"]

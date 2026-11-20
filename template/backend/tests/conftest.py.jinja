@@ -26,14 +26,14 @@ requires_db = pytest.mark.skipif(
 
 
 @pytest.fixture
-async def db_url() -> AsyncIterator[str]:
+async def db_url() -> str:
     """The test database, emptied before each test."""
     url = test_database_url()
     if url is None:
         pytest.skip(f"{TEST_DATABASE_ENV} is not set")
     async with connect(url) as conn:
         await conn.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
-    yield url
+    return url
 
 
 @pytest.fixture

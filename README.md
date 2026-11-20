@@ -1,32 +1,125 @@
+<div align="center">
+
 # full-stack-blueprint
 
-A [Copier](https://copier.readthedocs.io) template for a web project with a Python API and a
-TypeScript visor, ready to work on from the first minute: by people, and above all by coding
-agents (Claude Code, Codex, Cursor…), which get an `AGENTS.md`, skills and a `Makefile` whose
-targets never prompt and always end with a clear exit code and summary.
+**A Python + React web project, ready in minutes and built for coding agents.**
+
+FastAPI · PostgreSQL · React · TypeScript, with tests, CI and deploy config included.
+
+[![CI](https://github.com/ebotiab/full-stack-blueprint/actions/workflows/ci.yml/badge.svg)](https://github.com/ebotiab/full-stack-blueprint/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/tag/ebotiab/full-stack-blueprint?label=release&sort=semver)](https://github.com/ebotiab/full-stack-blueprint/tags)
+[![Copier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-orange.json)](https://github.com/copier-org/copier)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+</div>
+
+> [!TIP]
+> **See the result before you start.**
+> [**full-stack-blueprint-example**](https://github.com/ebotiab/full-stack-blueprint-example) is a
+> project generated from this template with every default answer. Browse its code, its README and
+> its passing CI to see exactly what you will get.
+
+## At a glance
+
+| Part | What you get |
+| --- | --- |
+| 🐍 **API** | FastAPI on Python 3.14, plain SQL with asyncpg, SQL migrations and a small CLI |
+| ⚛️ **Visor** *(optional)* | React 19, Vite and TypeScript, with a client typed from the API |
+| 🐘 **Database** *(optional)* | PostgreSQL 18 in Docker on your machine, Neon in production |
+| ✅ **Checks** | Format, lint, types, tests against a real database and browser tests, all in one `make check` |
+| 🚀 **Deploy** | Render (default), FastAPI Cloud, Railway or Vercel for the API; Vercel for the visor |
+| 🤖 **Agents** | An `AGENTS.md`, skills and commands that never ask, for Claude Code, Codex, Cursor… |
+
+## Quick start
+
+You need [uv](https://docs.astral.sh/uv/), [Node 24](https://nodejs.org) and
+[Docker Desktop](https://docs.docker.com/get-docker/) running. First time setting up a computer?
+Follow the [step-by-step guide](#create-your-project-step-by-step) instead.
+
+```bash
+uv tool install copier                               # once per computer
+copier copy gh:ebotiab/full-stack-blueprint my-app   # press Enter to keep each default
+cd my-app
+git init -b main && git add -A && git commit -m "Generate from full-stack-blueprint"
+make setup                                           # dependencies, database, migrations, API types
+make dev                                             # API on :8000, visor on :5173
+```
+
+Open http://127.0.0.1:5173: the app is running. `make check` runs everything the CI runs.
+
+## How it fits together
+
+What runs:
+
+```mermaid
+flowchart LR
+    browser(["Browser"])
+    subgraph project["Your project"]
+        visor["Visor<br/>React · Vite · TypeScript"]
+        api["API<br/>FastAPI · asyncpg"]
+        db[("PostgreSQL")]
+    end
+    logfire["Logfire<br/>traces and errors"]
+    browser --> visor
+    visor -- "/api, typed client" --> api
+    api -- "plain SQL" --> db
+    visor -.-> logfire
+    api -.-> logfire
+```
+
+How a change reaches production:
+
+```mermaid
+flowchart LR
+    ask["You ask<br/>for a change"] --> agent["The agent writes<br/>code, SQL and tests"]
+    agent --> check["make check<br/>passes locally"]
+    check --> pr["Pull request:<br/>CI runs the same checks"]
+    pr --> merge["Auto-merge<br/>into main"]
+    merge --> deploy["Deploy"]
+    deploy --> obs["obs status<br/>confirms it in Logfire"]
+```
 
 ## Built for development with coding agents
 
-The template assumes that you direct the work and a coding agent writes most of the code. Every
-choice follows from that: code an agent can read and verify beats abstraction that saves a person
-typing, and every check gives a clear verdict the agent can act on without asking.
+You direct the work and a coding agent writes most of the code. Every choice follows from that:
+code an agent can read and verify beats abstraction that saves a person typing, and every check
+gives a clear verdict the agent can act on without asking.
 
-- **SQL, no ORM.** Queries are plain SQL run with asyncpg, next to the code that uses them, and a
-  schema change is a numbered `.sql` file. An ORM saves people from writing SQL and mapping rows by
-  hand; for an agent that work is cheap, while an ORM adds a second language and queries generated
-  out of sight. Plain SQL is what an agent writes, reviews and tests most reliably.
-- **Contracts that machines check.** Types on both sides, an OpenAPI schema committed with the
-  code, TypeScript types generated from it and tests against a real PostgreSQL: when any of them
-  drifts the CI fails, so a mistake shows up as a failed check instead of a bug in production.
-- **Commands that never ask.** Every `make` target runs without prompts and ends with a reliable
-  exit code and a summary of what passed and failed.
-- **Instructions in the repository.** Each project gets an `AGENTS.md` (Claude Code reads it
-  through `CLAUDE.md`; Codex, Cursor and others read it directly) and skills for its usual tasks,
-  such as changing the API or shipping a change.
-- **Production the agent can check.** `obs status` reads the traces in Logfire and tells whether a
-  commit is deployed and serving without errors, so a task ends when production confirms it.
+| Choice | Why it helps |
+| --- | --- |
+| **SQL, no ORM** | Queries are plain SQL run with asyncpg, next to the code that uses them, and a schema change is a numbered `.sql` file. An ORM saves people from writing SQL; for an agent that work is cheap, while an ORM adds a second language and queries generated out of sight. |
+| **Contracts that machines check** | Types on both sides, an OpenAPI schema committed with the code, TypeScript types generated from it and tests against a real PostgreSQL. When any of them drifts the CI fails, so a mistake shows up as a failed check instead of a bug in production. |
+| **Commands that never ask** | Every `make` target runs without prompts and ends with a reliable exit code and a summary of what passed and failed. |
+| **Instructions in the repository** | Each project has an `AGENTS.md` (Claude Code reads it through `CLAUDE.md`; Codex, Cursor and others read it directly) and skills for its usual tasks, such as changing the API or shipping a change. |
+| **Production the agent can check** | `obs status` reads the traces in Logfire and tells whether a commit is deployed and serving without errors, so a task ends when production confirms it. |
 
-What a generated project contains:
+## What's inside
+
+A project generated with the defaults, here called `my-app`:
+
+```text
+my-app/
+├── AGENTS.md              instructions for coding agents (CLAUDE.md points here)
+├── Makefile               setup · dev · check · fmt · types · migrate …
+├── .agents/skills/        step-by-step tasks for agents: change the API, ship a change
+├── backend/               the API
+│   ├── src/my_app/
+│   │   ├── api/           FastAPI app and routes
+│   │   ├── db/            connection pool, migration runner, migrations/*.sql
+│   │   ├── cli.py         migrate · openapi · obs status
+│   │   └── settings.py    configuration from environment variables
+│   ├── tests/             pytest, against a real PostgreSQL
+│   └── openapi.json       the API contract, committed with the code
+├── frontend/              the visor (optional)
+│   ├── src/api/           client typed from openapi.json
+│   └── e2e/               Playwright browser tests
+├── docker-compose.yml     local PostgreSQL (optional)
+├── render.yaml            deploy config for the chosen target
+└── .github/               CI and Dependabot
+```
+
+<details>
+<summary><b>The full stack, piece by piece</b></summary>
 
 - **API** (`backend/`): Python 3.14 with uv and uv_build, FastAPI, asyncpg without an ORM and a
   small packaged SQL migration runner (idempotent, PostgreSQL advisory lock, checksums),
@@ -42,49 +135,46 @@ What a generated project contains:
   OpenAPI schema or the generated types are stale, grouped Dependabot updates, a 7-day wait before
   any new release is installed (Dependabot, uv, npm), VS Code settings that match the checks.
 
+</details>
+
 ## Create your project, step by step
 
-This walk-through takes you from an empty computer to a project that runs on your machine, lives
-in its own GitHub repository and passes all its checks. The first time takes about half an hour,
-mostly installing tools. You need no cloud account until you deploy.
+From an empty computer to a project that runs on your machine, lives in its own GitHub repository
+and passes all its checks. The first time takes about half an hour, mostly installing tools. You
+need no cloud account until you deploy.
 
 ### 1. Install the tools (once per computer)
 
-- **git**, to keep the history of your code. macOS: `xcode-select --install` (it also brings
-  `make`). Ubuntu/Debian: `sudo apt install git make`. Others: https://git-scm.com/downloads.
-- **uv** 0.9.17 or newer, which runs Python and installs its packages. It downloads the right
-  Python by itself, so you do not install Python separately:
-  `curl -LsSf https://astral.sh/uv/install.sh | sh` (or `brew install uv`).
-- **Copier**, which generates the project from this template: `uv tool install copier`.
-- **Node 24 LTS** (it brings npm 11.10 or newer), for the visor: https://nodejs.org (or
-  `brew install node@24`, or `nvm install 24`). Not needed for a project without a visor.
-- **Docker Desktop**, which runs the local PostgreSQL: https://docs.docker.com/get-docker/. Start
-  it once after installing. Not needed for a project without a database.
-- **GitHub CLI** (optional), to create the repository from the terminal: `brew install gh` or
-  https://cli.github.com, then `gh auth login`.
-- **A coding agent** (recommended), such as [Claude Code](https://claude.com/claude-code), Codex or
-  Cursor: the template is made for working with one.
+| Tool | What it does | How to install | Needed for |
+| --- | --- | --- | --- |
+| **git** and **make** | Keeps your code's history; runs the project's tasks | macOS: `xcode-select --install`<br>Ubuntu/Debian: `sudo apt install git make` | every project |
+| **uv** 0.9.17+ | Runs Python and installs its packages; it downloads the right Python by itself | `curl -LsSf https://astral.sh/uv/install.sh \| sh`<br>or `brew install uv` | every project |
+| **Copier** | Generates the project from this template | `uv tool install copier` | every project |
+| **Node 24 LTS** (npm 11.10+) | Runs the visor's tools | [nodejs.org](https://nodejs.org), `brew install node@24` or `nvm install 24` | the visor |
+| **Docker Desktop** | Runs the local PostgreSQL; start it once after installing | [docs.docker.com/get-docker](https://docs.docker.com/get-docker/) | the database |
+| **GitHub CLI** | Creates the repository from the terminal | `brew install gh` or [cli.github.com](https://cli.github.com), then `gh auth login` | optional |
+| **A coding agent** | Writes code with you | [Claude Code](https://claude.com/claude-code), Codex, Cursor… | recommended |
 
-On Windows, install [WSL 2](https://learn.microsoft.com/windows/wsl/install) with Ubuntu, turn on
-Docker Desktop's WSL 2 integration, and run every command of this guide inside Ubuntu: the
-`Makefile` and the scripts need bash.
+> [!NOTE]
+> **On Windows**, install [WSL 2](https://learn.microsoft.com/windows/wsl/install) with Ubuntu,
+> turn on Docker Desktop's WSL 2 integration and run every command of this guide inside Ubuntu:
+> the `Makefile` and the scripts need bash.
 
-To see that everything is in place: `git --version`, `uv --version`, `copier --version`,
+To see that everything is in place, `git --version`, `uv --version`, `copier --version`,
 `node --version` and `docker info` should each print a version or a status, not an error.
 
 ### 2. Decide your answers
 
-Copier asks one question per option, and every question has a default (the table in
-[Options and defaults](#options-and-defaults) lists them all). Decide these before you start:
+Every question has a default ([see them all](#options-and-defaults)). These are worth a thought:
 
-- **`project_name`**, the readable name, such as `Bus Stops`. The short names (`bus-stops` for the
-  repository and commands, `bus_stops` for the Python package) are derived from it.
-- **`github_repo`**, the repository you will create in step 4, as `your-user/bus-stops`. It does
-  not need to exist yet.
-- **`with_frontend`** and **`with_database`**: keep both (the default) unless you want an API
-  without a visor or without PostgreSQL.
-- **`api_deploy`**: where the API will run in production; Render unless you prefer another. You can
-  change any answer later (see [Update a project](#update-a-project)).
+| Question | Example | What it decides |
+| --- | --- | --- |
+| `project_name` | `Bus Stops` | The readable name. The short names come from it: `bus-stops` for the repository and commands, `bus_stops` for the Python package. |
+| `github_repo` | `your-user/bus-stops` | The repository you create in step 4. It does not need to exist yet. |
+| `with_frontend`, `with_database` | `true` | Keep both unless you want an API without a visor or without PostgreSQL. |
+| `api_deploy` | `render` | Where the API runs in production. |
+
+You can change any answer later: see [Update a project](#update-a-project).
 
 ### 3. Generate the project
 
@@ -94,8 +184,12 @@ From the folder where you keep your projects:
 copier copy gh:ebotiab/full-stack-blueprint bus-stops
 ```
 
-Copier asks each question with its default: press Enter to keep it. To skip the questions (what
-agents do), take the defaults and override what you need:
+Copier asks each question with its default: press Enter to keep it.
+
+<details>
+<summary>Without questions (what agents do)</summary>
+
+Take the defaults and override what you need:
 
 ```bash
 copier copy --defaults \
@@ -104,8 +198,11 @@ copier copy --defaults \
   gh:ebotiab/full-stack-blueprint bus-stops
 ```
 
-or put the answers in a file: `copier copy --defaults --data-file answers.yml gh:ebotiab/full-stack-blueprint bus-stops`.
+Or put the answers in a file:
+`copier copy --defaults --data-file answers.yml gh:ebotiab/full-stack-blueprint bus-stops`.
 The template has no `_tasks`, so `--trust` is never needed.
+
+</details>
 
 ### 4. Put it in git and on GitHub
 
@@ -114,21 +211,21 @@ cd bus-stops
 git init -b main
 git add -A
 git commit -m "Generate from full-stack-blueprint"
-```
-
-With the GitHub CLI, one command creates the repository and uploads the code:
-
-```bash
 gh repo create your-user/bus-stops --private --source . --push
 ```
 
-Without it, create an empty repository at https://github.com/new (add no README, `.gitignore` or
-license: the project brings its own files), then:
+<details>
+<summary>Without the GitHub CLI</summary>
+
+Create an empty repository at https://github.com/new (add no README, `.gitignore` or license: the
+project brings its own files), then:
 
 ```bash
 git remote add origin https://github.com/your-user/bus-stops.git
 git push -u origin main
 ```
+
+</details>
 
 ### 5. Install and check everything
 
@@ -138,14 +235,23 @@ make setup    # dependencies, PostgreSQL, migrations, API schema and types
 make check    # everything the CI runs: format, lint, types, tests, build, browser tests
 ```
 
-Each command ends with a summary, one line per step: `ok` or `FAIL`. The first `make check` takes a
-few minutes. When it ends with "All N steps passed.", save what `make setup` generated (lockfiles,
-API schema and types):
+Each command ends with a summary, one line per step. The first `make check` takes a few minutes;
+this is what success looks like:
+
+```text
+Summary
+  ok    Python format (ruff format) (1s)
+  ok    Python lint (ruff check) (0s)
+  ok    Python types (pyright) (2s)
+  …
+  ok    Visor browser tests (Playwright) (5s)
+All 12 steps passed.
+```
+
+Then save what `make setup` generated (lockfiles, API schema and types):
 
 ```bash
-git add -A
-git commit -m "Lockfiles and generated API types"
-git push
+git add -A && git commit -m "Lockfiles and generated API types" && git push
 ```
 
 ### 6. Run it
@@ -154,20 +260,27 @@ git push
 make dev
 ```
 
-The API answers under http://127.0.0.1:8000/api (try http://127.0.0.1:8000/api/healthz), its
-interactive documentation is at http://127.0.0.1:8000/docs and the visor is at
-http://127.0.0.1:5173. Ctrl-C stops everything.
+| What | Where |
+| --- | --- |
+| The visor | http://127.0.0.1:5173 |
+| The API | http://127.0.0.1:8000/api (try http://127.0.0.1:8000/api/healthz) |
+| Interactive API docs | http://127.0.0.1:8000/docs |
+
+Ctrl-C stops everything.
 
 ### 7. Work with a coding agent
 
-Open the project folder with your agent (for Claude Code, run `claude` inside it). It reads
-`AGENTS.md`, which has the layout, the commands and the conventions, and the skills in
-`.agents/skills/` for usual tasks such as changing the API. Ask for a change in plain words, for
-example "add an endpoint that lists bus stops near a point, with its table and migration". The
-conventions ask the agent to write tests, run `make check` and open one small pull request per
-task, marked to merge itself as soon as the CI passes; you can review it before then.
+Open the project folder with your agent (for Claude Code, run `claude` inside it) and ask for a
+change in plain words, for example:
+
+> Add an endpoint that lists bus stops near a point, with its table and migration.
+
+The agent reads `AGENTS.md`, which has the layout, the commands and the conventions, and the
+skills in `.agents/skills/` for usual tasks such as changing the API. The conventions ask it to
+write tests, run `make check` and open one small pull request per task, marked to merge itself as
+soon as the CI passes; you can review it before then.
 [Built for development with coding agents](#built-for-development-with-coding-agents) explains
-how the template supports this way of working.
+why it works this way.
 
 ### 8. Deploy, when you are ready
 
@@ -177,17 +290,13 @@ when the CI passes. After that, merging into `main` deploys.
 
 ### If something fails
 
-- **`make doctor` reports a problem**: run the fix it prints under the failed line, then run
-  `make doctor` again.
-- **The PostgreSQL port is taken** (another project uses 5434): generate with another port, such as
-  `--data postgres_port=5544`, or follow the fix `make doctor` prints.
-- **Docker is installed but nothing starts**: open Docker Desktop and wait until it says it is
-  running.
-- **uv or npm cannot find a version** that exists: the project only installs releases that are at
-  least 7 days old, as a protection against compromised packages. Use a version that is a week old.
-- **`make check` fails**: the summary names the step. Formatting is fixed by `make fmt`; stale API
-  types by `make types`; for anything else, the output above the summary says what broke. If you
-  work with an agent, give it the summary.
+| Symptom | What to do |
+| --- | --- |
+| `make doctor` reports a problem | Run the fix it prints under the failed line, then run `make doctor` again. |
+| The PostgreSQL port is taken (another project uses 5434) | Generate with another port, such as `--data postgres_port=5544`, or follow the fix `make doctor` prints. |
+| Docker is installed but nothing starts | Open Docker Desktop and wait until it says it is running. |
+| uv or npm cannot find a version that exists | The project only installs releases that are at least 7 days old, as a protection against compromised packages. Use a version that is a week old. |
+| `make check` fails | The summary names the step. `make fmt` fixes formatting and `make types` stale API types; for anything else, the output above the summary says what broke. If you work with an agent, give it the summary. |
 
 ## Options and defaults
 
@@ -206,16 +315,8 @@ when the CI passes. After that, merging into `main` deploys.
 | `api_deploy` | `render` | `render`, `fastapi_cloud`, `railway`, `vercel` |
 | `api_public_url` | the platform's usual URL | where the visor's `vercel.json` proxies `/api` (asked only with a visor and a non-Vercel API) |
 
-Two defaults are meant to change, each with a one-line edit in `copier.yml` (the comment above the
-question says which line):
-
-- **`type_checker: ty`** once ty publishes a stable 1.0 release. Until then it is a 0.0.x beta:
-  faster than pyright, but its diagnostics still change between releases.
-- **`api_deploy: fastapi_cloud`** once FastAPI Cloud offers all of: an EU region, a Dockerfile or a
-  command that runs before start-up (for migrations), rollbacks that are no longer "coming soon",
-  and active usage-based billing. Until then Render is the default: Docker, Frankfurt, a free plan.
-
-What each deploy target generates:
+<details>
+<summary><b>What each deploy target generates</b></summary>
 
 | `api_deploy` | Files | Migrations run | Deployed commit read from |
 | --- | --- | --- | --- |
@@ -229,29 +330,72 @@ deploys it to Vercel; with `vercel`, visor and API share one project and one dom
 there is no CORS anywhere. Railway uses `.railway/railway.ts` (Infrastructure as Code) because
 its `railway.json`/`railway.toml` format is deprecated and stops being read on 2026-12-01.
 
+</details>
+
+<details>
+<summary><b>Two defaults that will change</b></summary>
+
+Each is a one-line edit in `copier.yml` (the comment above the question says which line):
+
+- **`type_checker: ty`** once ty publishes a stable 1.0 release. Until then it is a 0.0.x beta:
+  faster than pyright, but its diagnostics still change between releases.
+- **`api_deploy: fastapi_cloud`** once FastAPI Cloud offers all of: an EU region, a Dockerfile or a
+  command that runs before start-up (for migrations), rollbacks that are no longer "coming soon",
+  and active usage-based billing. Until then Render is the default: Docker, Frankfurt, a free plan.
+
+</details>
+
 ## Manual steps per target
 
-Generating and checking a project needs no account. Deploying it needs these one-time steps; the
-generated project's README ("Deploy") repeats the ones that apply, with its own names filled in.
-Nothing in the template creates cloud resources.
+Generating and checking a project needs no account, and nothing in the template creates cloud
+resources. Deploying needs these one-time steps; the generated project's README ("Deploy") repeats
+the ones that apply, with its own names filled in.
 
-- **Logfire** (all targets): create a project; a write token as `LOGFIRE_TOKEN` on the API's
-  platform; a read token in `~/.config/<slug>/logfire-read-token` for `obs status`; for browser
-  errors, a frontend application token as `VITE_LOGFIRE_TOKEN` in Vercel.
+For every project:
+
+- **Logfire**: create a project; a write token as `LOGFIRE_TOKEN` on the API's platform; a read
+  token in `~/.config/<slug>/logfire-read-token` for `obs status`; for browser errors, a frontend
+  application token as `VITE_LOGFIRE_TOKEN` in Vercel.
 - **Neon** (with a database): a project in an EU region (`aws-eu-central-1`); the direct connection
   string for Render, Railway, FastAPI Cloud and migrations; the pooled one (`-pooler`) for Vercel.
-- **Render**: New → Blueprint → the repository; set `DATABASE_URL` and `LOGFIRE_TOKEN` when asked.
-- **FastAPI Cloud**: `fastapi login`, a first `fastapi deploy` from `backend/`, `fastapi cloud
-  setup-ci --secrets-only` (GitHub secrets `FASTAPI_CLOUD_TOKEN`, `FASTAPI_CLOUD_APP_ID`), and
-  `fastapi cloud env set` for `DATABASE_URL`, `LOGFIRE_TOKEN` and `<PREFIX>ENVIRONMENT`.
-- **Railway**: `npm install --prefix .railway`, `railway link`, `railway config apply`; then
-  `DATABASE_URL`, `LOGFIRE_TOKEN`, a public domain and "Wait for CI" in the dashboard.
-- **Vercel** (visor, or `vercel` target): import the repository (root `frontend` for the visor
-  alone, the repository root for the `vercel` target); environment variables `LOGFIRE_TOKEN`,
-  `VITE_LOGFIRE_TOKEN` and, for `vercel` with a database, `DATABASE_URL` (pooled) plus the GitHub
-  secrets of `deploy.yml` (`DATABASE_URL` direct, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`).
-  With a non-Vercel API, check the API URL in `frontend/vercel.json`.
 - **GitHub**: protect `main` with the required checks `Backend` and `Frontend`, and allow auto-merge.
+
+Then the steps for your target:
+
+<details>
+<summary><b>Render</b> (default)</summary>
+
+New → Blueprint → the repository; set `DATABASE_URL` and `LOGFIRE_TOKEN` when asked.
+
+</details>
+
+<details>
+<summary><b>FastAPI Cloud</b></summary>
+
+`fastapi login`, a first `fastapi deploy` from `backend/`, `fastapi cloud setup-ci --secrets-only`
+(GitHub secrets `FASTAPI_CLOUD_TOKEN`, `FASTAPI_CLOUD_APP_ID`), and `fastapi cloud env set` for
+`DATABASE_URL`, `LOGFIRE_TOKEN` and `<PREFIX>ENVIRONMENT`.
+
+</details>
+
+<details>
+<summary><b>Railway</b></summary>
+
+`npm install --prefix .railway`, `railway link`, `railway config apply`; then `DATABASE_URL`,
+`LOGFIRE_TOKEN`, a public domain and "Wait for CI" in the dashboard.
+
+</details>
+
+<details>
+<summary><b>Vercel</b> (the visor, or the <code>vercel</code> target)</summary>
+
+Import the repository: root `frontend` for the visor alone, the repository root for the `vercel`
+target. Set the environment variables `LOGFIRE_TOKEN`, `VITE_LOGFIRE_TOKEN` and, for `vercel` with
+a database, `DATABASE_URL` (pooled), plus the GitHub secrets of `deploy.yml` (`DATABASE_URL`
+direct, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`). With a non-Vercel API, check the
+API URL in `frontend/vercel.json`.
+
+</details>
 
 ## Update a project
 
@@ -259,8 +403,8 @@ Copier remembers the answers in the project's `.copier-answers.yml`. When the te
 
 ```bash
 cd my-project
-git status                      # must be clean
-copier update --defaults        # latest tagged release of the template
+git status                                # must be clean
+copier update --defaults                  # latest tagged release of the template
 copier update --defaults --vcs-ref=HEAD   # or the template's latest commit
 make setup && make check
 ```
@@ -284,4 +428,5 @@ plus the update check. Agents working on the template read [AGENTS.md](AGENTS.md
 
 ## License
 
-[MIT](LICENSE). It covers the template itself; projects generated from it are yours to license as you wish.
+[MIT](LICENSE). It covers the template itself; projects generated from it are yours to license as
+you wish.

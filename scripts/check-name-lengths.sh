@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Generate the backend for every package-name length the template accepts (1 to 58 characters)
 # and run the generated project's own ruff on all of them (`ruff format --check`, `ruff check`).
+# It also checks that copier rejects a package name that is too long or a standard-library module.
 # Used by the template's CI and by hand:
 #
 #   scripts/check-name-lengths.sh <output-dir>
@@ -75,6 +76,15 @@ echo "==> a name of $((max + 1)) characters is rejected"
 if copier copy --quiet --defaults --vcs-ref HEAD --data "project_name=$(name_of_length $((max + 1)))" \
   "$template" "$out/rejected" >/dev/null 2>&1; then
   echo "copier accepted a package name of $((max + 1)) characters: see package_name in copier.yml." >&2
+  exit 1
+fi
+
+echo "==> a standard-library module name is rejected (project \"Calendar\" → package calendar)"
+output=$(copier copy --quiet --defaults --vcs-ref HEAD --data project_name=Calendar \
+  "$template" "$out/stdlib" 2>&1) || true
+if ! grep -q "standard library" <<<"$output"; then
+  echo "$output" >&2
+  echo "copier did not reject the package name calendar: see package_name in copier.yml." >&2
   exit 1
 fi
 echo "==> every length passed."

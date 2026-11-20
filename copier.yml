@@ -39,14 +39,45 @@ project_slug:
 # length up to it (scripts/check-name-lengths.sh).
 package_name:
   type: str
-  help: Python package name (snake_case, at most 58 characters), importable as `import <package_name>`.
+  help: >-
+    Python package name (snake_case, at most 58 characters, not a standard-library module such as
+    `calendar`), importable as `import <package_name>`.
   default: "{{ project_slug | replace('-', '_') }}"
+  # A package named like a standard-library module (a project called "Calendar", "Email" or
+  # "Types") cannot be imported, since the standard library comes first on sys.path, and ruff sorts
+  # its imports as standard library. Validators are Jinja and cannot import Python, so `stdlib`
+  # below lists Python 3.14's top-level modules. When the generated project moves to a new Python,
+  # regenerate the list with:
+  #   python3.X -c "import sys; print(*sorted(m for m in sys.stdlib_module_names if m.islower() and m[0] != '_'))"
   validator: >-
+    {%- set stdlib = "
+    abc annotationlib antigravity argparse array ast asyncio atexit base64 bdb binascii bisect
+    builtins bz2 calendar cmath cmd code codecs codeop collections colorsys compileall compression
+    concurrent configparser contextlib contextvars copy copyreg csv ctypes curses dataclasses
+    datetime dbm decimal difflib dis doctest email encodings ensurepip enum errno faulthandler fcntl
+    filecmp fileinput fnmatch fractions ftplib functools gc genericpath getopt getpass gettext glob
+    graphlib grp gzip hashlib heapq hmac html http idlelib imaplib importlib inspect io ipaddress
+    itertools json keyword linecache locale logging lzma mailbox marshal math mimetypes mmap
+    modulefinder msvcrt multiprocessing netrc nt ntpath nturl2path numbers opcode operator optparse
+    os pathlib pdb pickle pickletools pkgutil platform plistlib poplib posix posixpath pprint
+    profile pstats pty pwd py_compile pyclbr pydoc pydoc_data pyexpat queue quopri random re
+    readline reprlib resource rlcompleter runpy sched secrets select selectors shelve shlex shutil
+    signal site smtplib socket socketserver sqlite3 sre_compile sre_constants sre_parse ssl stat
+    statistics string stringprep struct subprocess symtable sys sysconfig syslog tabnanny tarfile
+    tempfile termios textwrap this threading time timeit tkinter token tokenize tomllib trace
+    traceback tracemalloc tty turtle turtledemo types typing unicodedata unittest urllib uuid venv
+    warnings wave weakref webbrowser winreg winsound wsgiref xml xmlrpc zipapp zipfile zipimport
+    zlib zoneinfo
+    ".split() -%}
     {% if not (package_name | regex_search('^[a-z][a-z0-9_]*$')) %}Use lowercase letters, digits
-    and underscores, starting with a letter.{% elif package_name | length > 58 %}Use at most 58
-    characters ({{ package_name | length }} now): the test database `{{ package_name }}_test` must
-    fit PostgreSQL's 63-byte names, and the generated imports 100 columns. Shorten the project
-    name or pass --data package_name=...{% endif %}
+    and underscores, starting with a letter.{% elif package_name in stdlib %}`{{ package_name }}`
+    is a module of Python's standard library: `import {{ package_name }}` would load it instead of
+    the project's package, and ruff would sort the project's imports as standard library. Pass
+    --data package_name={{ package_name }}_app or another name.
+    {%- elif package_name | length > 58 %}Use at most 58 characters ({{ package_name | length }}
+    now): the test database `{{ package_name }}_test` must fit PostgreSQL's 63-byte names, and
+    the generated imports 100 columns. Shorten the project name or pass --data
+    package_name=...{% endif %}
 
 env_prefix:
   type: str

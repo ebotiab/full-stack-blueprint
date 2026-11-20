@@ -302,7 +302,7 @@ when the CI passes. After that, merging into `main` deploys.
 | --- | --- | --- |
 | `project_name` | `My Project` | any text |
 | `project_slug` | from the name (`my-project`) | kebab-case: repository, CLI command, service names |
-| `package_name` | from the slug (`my_project`) | Python package, at most 58 characters |
+| `package_name` | from the slug (`my_project`) | Python package, at most 58 characters, not a standard-library module (`calendar`, `email`) |
 | `env_prefix` | from the package (`MY_PROJECT_`) | prefix of the project's environment variables |
 | `description` | `A FastAPI API with a React visor.` | one sentence |
 | `github_repo` | `your-github-user/<slug>` | `owner/name`; used for links, Logfire and Railway |

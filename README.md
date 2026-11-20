@@ -37,12 +37,12 @@ You need [uv](https://docs.astral.sh/uv/), [Node 24](https://nodejs.org) and
 Follow the [step-by-step guide](#create-your-project-step-by-step) instead.
 
 ```bash
-uv tool install copier                               # once per computer
-copier copy gh:ebotiab/full-stack-blueprint my-app   # press Enter to keep each default
+uv tool install copier                              # once per computer
+copier copy gh:ebotiab/full-stack-blueprint my-app  # Enter keeps each default
 cd my-app
 git init -b main && git add -A && git commit -m "Generate from full-stack-blueprint"
-make setup                                           # dependencies, database, migrations, API types
-make dev                                             # API on :8000, visor on :5173
+make setup   # dependencies, database, migrations, API types
+make dev     # API on :8000, visor on :5173
 ```
 
 Open http://127.0.0.1:5173: the app is running. `make check` runs everything the CI runs.
@@ -71,12 +71,10 @@ How a change reaches production:
 
 ```mermaid
 flowchart LR
-    ask["You ask<br/>for a change"] --> agent["The agent writes<br/>code, SQL and tests"]
-    agent --> check["make check<br/>passes locally"]
-    check --> pr["Pull request:<br/>CI runs the same checks"]
-    pr --> merge["Auto-merge<br/>into main"]
-    merge --> deploy["Deploy"]
-    deploy --> obs["obs status<br/>confirms it in Logfire"]
+    ask["You ask<br/>for a change"] --> agent["The agent writes code<br/>and tests, then runs<br/>make check"]
+    agent --> pr["Pull request:<br/>CI runs the<br/>same checks"]
+    pr --> deploy["Auto-merge<br/>into main,<br/>then deploy"]
+    deploy --> obs["obs status<br/>confirms it<br/>in Logfire"]
 ```
 
 ## Built for development with coding agents

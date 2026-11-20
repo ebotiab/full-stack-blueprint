@@ -32,13 +32,21 @@ project_slug:
     {% if not (project_slug | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) %}Use lowercase
     letters, digits and single hyphens, starting with a letter.{% endif %}
 
+# At most 58 characters: it is also the PostgreSQL user and database, and the test database
+# `<package_name>_test` must fit PostgreSQL's 63-byte names (it truncates longer ones: `make test`
+# would look for a name that does not exist, and from 63 characters the test database would be the
+# dev one). The generated code's lines fit 100 columns up to this length, and the CI checks every
+# length up to it (scripts/check-name-lengths.sh).
 package_name:
   type: str
-  help: Python package name (snake_case), importable as `import <package_name>`.
+  help: Python package name (snake_case, at most 58 characters), importable as `import <package_name>`.
   default: "{{ project_slug | replace('-', '_') }}"
   validator: >-
     {% if not (package_name | regex_search('^[a-z][a-z0-9_]*$')) %}Use lowercase letters, digits
-    and underscores, starting with a letter.{% endif %}
+    and underscores, starting with a letter.{% elif package_name | length > 58 %}Use at most 58
+    characters ({{ package_name | length }} now): the test database `{{ package_name }}_test` must
+    fit PostgreSQL's 63-byte names, and the generated imports 100 columns. Shorten the project
+    name or pass --data package_name=...{% endif %}
 
 env_prefix:
   type: str

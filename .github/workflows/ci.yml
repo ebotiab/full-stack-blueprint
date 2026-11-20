@@ -41,7 +41,8 @@ jobs:
               --data "project_name=Medium Name Check"
           # The longest name copier.yml accepts: a 58-character package, whose test database
           # (`<package>_test`) is exactly PostgreSQL's 63-byte limit.
-          - name: fastapi_cloud, API only, longest name
+          # Keep the name: main's branch protection requires this check by name.
+          - name: fastapi_cloud, API only, long name
             data: >-
               --data api_deploy=fastapi_cloud --data with_frontend=false
               --data "project_name=Very Long Project Name For Formatting Checks Up To The Cap"

@@ -124,7 +124,8 @@ my-app/
   pydantic-settings, a Typer CLI (`migrate`, `openapi`, `obs status`), Logfire (works without a
   token), pytest against a real PostgreSQL, ruff, and pyright or ty.
 - **Visor** (`frontend/`, optional): Vite 8, React 19, TypeScript 7, a client typed from the API's
-  OpenAPI schema (`openapi-typescript` + `openapi-fetch`), oxlint, oxfmt (exact version), Vitest,
+  OpenAPI schema (`openapi-typescript` + `openapi-fetch`), oxlint with type-aware rules, oxfmt
+  (exact version), Vitest,
   Playwright, `@pydantic/logfire-browser` and Vercel Web Analytics.
 - **Database** (optional): PostgreSQL 18 in docker-compose for development; Neon in production.
 - **Deploy**: the API on Render (default), FastAPI Cloud, Railway or Vercel; the visor on Vercel.

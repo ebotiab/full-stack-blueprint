@@ -20,7 +20,7 @@ answers and is only changed by `copier update` (see "Template updates").
   - `openapi.json`: the API contract, generated (`make types`). Committed.
   - `tests/`: pytest{% if with_database %}; the integration tests use a real PostgreSQL database{% endif %}.
 {%- if with_frontend %}
-- `frontend/`: the visor. Vite, React, TypeScript, oxlint, oxfmt, Vitest, Playwright.
+- `frontend/`: the visor. Vite, React, TypeScript, oxlint (with type-aware rules), oxfmt, Vitest, Playwright.
   - `src/api/client.ts`: the typed API client (`openapi-fetch`). `src/api/schema.d.ts` is generated from `backend/openapi.json`: never edit it.
   - `src/**/*.test.ts`: unit tests (Vitest). `e2e/`: browser tests (Playwright); they answer `/api` themselves with `page.route`.
 {%- endif %}

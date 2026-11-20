@@ -42,34 +42,152 @@ What a generated project contains:
   OpenAPI schema or the generated types are stale, grouped Dependabot updates, a 7-day wait before
   any new release is installed (Dependabot, uv, npm), VS Code settings that match the checks.
 
-## Generate a project
+## Create your project, step by step
 
-Install Copier once (`uv tool install copier`), then:
+This walk-through takes you from an empty computer to a project that runs on your machine, lives
+in its own GitHub repository and passes all its checks. The first time takes about half an hour,
+mostly installing tools. You need no cloud account until you deploy.
+
+### 1. Install the tools (once per computer)
+
+- **git**, to keep the history of your code. macOS: `xcode-select --install` (it also brings
+  `make`). Ubuntu/Debian: `sudo apt install git make`. Others: https://git-scm.com/downloads.
+- **uv** 0.9.17 or newer, which runs Python and installs its packages. It downloads the right
+  Python by itself, so you do not install Python separately:
+  `curl -LsSf https://astral.sh/uv/install.sh | sh` (or `brew install uv`).
+- **Copier**, which generates the project from this template: `uv tool install copier`.
+- **Node 24 LTS** (it brings npm 11.10 or newer), for the visor: https://nodejs.org (or
+  `brew install node@24`, or `nvm install 24`). Not needed for a project without a visor.
+- **Docker Desktop**, which runs the local PostgreSQL: https://docs.docker.com/get-docker/. Start
+  it once after installing. Not needed for a project without a database.
+- **GitHub CLI** (optional), to create the repository from the terminal: `brew install gh` or
+  https://cli.github.com, then `gh auth login`.
+- **A coding agent** (recommended), such as [Claude Code](https://claude.com/claude-code), Codex or
+  Cursor: the template is made for working with one.
+
+On Windows, install [WSL 2](https://learn.microsoft.com/windows/wsl/install) with Ubuntu, turn on
+Docker Desktop's WSL 2 integration, and run every command of this guide inside Ubuntu: the
+`Makefile` and the scripts need bash.
+
+To see that everything is in place: `git --version`, `uv --version`, `copier --version`,
+`node --version` and `docker info` should each print a version or a status, not an error.
+
+### 2. Decide your answers
+
+Copier asks one question per option, and every question has a default (the table in
+[Options and defaults](#options-and-defaults) lists them all). Decide these before you start:
+
+- **`project_name`**, the readable name, such as `Bus Stops`. The short names (`bus-stops` for the
+  repository and commands, `bus_stops` for the Python package) are derived from it.
+- **`github_repo`**, the repository you will create in step 4, as `your-user/bus-stops`. It does
+  not need to exist yet.
+- **`with_frontend`** and **`with_database`**: keep both (the default) unless you want an API
+  without a visor or without PostgreSQL.
+- **`api_deploy`**: where the API will run in production; Render unless you prefer another. You can
+  change any answer later (see [Update a project](#update-a-project)).
+
+### 3. Generate the project
+
+From the folder where you keep your projects:
 
 ```bash
-copier copy gh:ebotiab/full-stack-blueprint my-project
+copier copy gh:ebotiab/full-stack-blueprint bus-stops
 ```
 
-Copier asks each question with its default. To generate without any prompt (what agents do), take
-the defaults and override what you need:
+Copier asks each question with its default: press Enter to keep it. To skip the questions (what
+agents do), take the defaults and override what you need:
 
 ```bash
 copier copy --defaults \
   --data project_name="Bus Stops" \
-  --data api_deploy=railway \
+  --data github_repo=your-user/bus-stops \
   gh:ebotiab/full-stack-blueprint bus-stops
 ```
 
 or put the answers in a file: `copier copy --defaults --data-file answers.yml gh:ebotiab/full-stack-blueprint bus-stops`.
-The template has no `_tasks`, so `--trust` is never needed. Then, inside the project:
+The template has no `_tasks`, so `--trust` is never needed.
+
+### 4. Put it in git and on GitHub
 
 ```bash
-git init && git add -A && git commit -m "Generate from full-stack-blueprint"
-make doctor   # checks uv, Node and Docker and says how to fix what is missing
-make setup    # dependencies, PostgreSQL, migrations, API schema and types
-make check    # everything the CI runs
-git add -A && git commit -m "Lockfiles and generated API types"
+cd bus-stops
+git init -b main
+git add -A
+git commit -m "Generate from full-stack-blueprint"
 ```
+
+With the GitHub CLI, one command creates the repository and uploads the code:
+
+```bash
+gh repo create your-user/bus-stops --private --source . --push
+```
+
+Without it, create an empty repository at https://github.com/new (add no README, `.gitignore` or
+license: the project brings its own files), then:
+
+```bash
+git remote add origin https://github.com/your-user/bus-stops.git
+git push -u origin main
+```
+
+### 5. Install and check everything
+
+```bash
+make doctor   # checks the tools and says how to fix whatever is missing
+make setup    # dependencies, PostgreSQL, migrations, API schema and types
+make check    # everything the CI runs: format, lint, types, tests, build, browser tests
+```
+
+Each command ends with a summary, one line per step: `ok` or `FAIL`. The first `make check` takes a
+few minutes. When it ends with "All N steps passed.", save what `make setup` generated (lockfiles,
+API schema and types):
+
+```bash
+git add -A
+git commit -m "Lockfiles and generated API types"
+git push
+```
+
+### 6. Run it
+
+```bash
+make dev
+```
+
+The API answers under http://127.0.0.1:8000/api (try http://127.0.0.1:8000/api/healthz), its
+interactive documentation is at http://127.0.0.1:8000/docs and the visor is at
+http://127.0.0.1:5173. Ctrl-C stops everything.
+
+### 7. Work with a coding agent
+
+Open the project folder with your agent (for Claude Code, run `claude` inside it). It reads
+`AGENTS.md`, which has the layout, the commands and the conventions, and the skills in
+`.agents/skills/` for usual tasks such as changing the API. Ask for a change in plain words, for
+example "add an endpoint that lists bus stops near a point, with its table and migration". The
+conventions ask the agent to write tests, run `make check` and open one small pull request per
+task, marked to merge itself as soon as the CI passes; you can review it before then.
+[Built for development with coding agents](#built-for-development-with-coding-agents) explains
+how the template supports this way of working.
+
+### 8. Deploy, when you are ready
+
+Follow the steps for your target in [Manual steps per target](#manual-steps-per-target): a few
+one-time accounts and secrets, plus protecting `main` on GitHub so that pull requests merge only
+when the CI passes. After that, merging into `main` deploys.
+
+### If something fails
+
+- **`make doctor` reports a problem**: run the fix it prints under the failed line, then run
+  `make doctor` again.
+- **The PostgreSQL port is taken** (another project uses 5434): generate with another port, such as
+  `--data postgres_port=5544`, or follow the fix `make doctor` prints.
+- **Docker is installed but nothing starts**: open Docker Desktop and wait until it says it is
+  running.
+- **uv or npm cannot find a version** that exists: the project only installs releases that are at
+  least 7 days old, as a protection against compromised packages. Use a version that is a week old.
+- **`make check` fails**: the summary names the step. Formatting is fixed by `make fmt`; stale API
+  types by `make types`; for anything else, the output above the summary says what broke. If you
+  work with an agent, give it the summary.
 
 ## Options and defaults
 

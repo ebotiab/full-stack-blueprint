@@ -34,6 +34,9 @@ Neon or Logfire without the user's explicit go-ahead.
 - `.github/dependabot.yml`: weekly updates of the actions this repository's CI uses.
 - `.github/workflows/ci.yml`: five combinations that cover every value of every option, the
   name-length check and the update check.
+- `.github/workflows/update-example.yml` and `scripts/update-example.sh`: after a push to main
+  that changes what the template generates, update the example project the README links to and
+  open a pull request there. Nothing to do by hand; the workflow's first comment explains its token.
 - `.agents/skills/`: this repository's skills (`.claude/skills` links here).
   `.claude/settings.json` turns off Claude Code plugins this repository does not use.
 

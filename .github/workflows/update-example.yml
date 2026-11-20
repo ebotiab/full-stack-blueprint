@@ -1,0 +1,100 @@
+# Keeps the example project (the one the README links to) generated from the latest commit of this
+# template. After every push to main that changes what the template generates, it updates a
+# checkout of the example with scripts/update-example.sh and opens a pull request there, marked to
+# merge itself when the example's own CI passes.
+#
+# It needs one secret, EXAMPLE_REPO_TOKEN: a fine-grained personal access token limited to the
+# example repository, with read and write access to Contents, Pull requests and Workflows. The
+# built-in GITHUB_TOKEN cannot do it: it only reaches this repository, it may not push changes to
+# workflow files, and the pull requests it opens do not start the CI. Without the secret the job
+# says so and does nothing.
+name: Update the example project
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - template/**
+      - copier.yml
+      - scripts/update-example.sh
+      - .github/workflows/update-example.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One update at a time; a newer push replaces the one in progress.
+concurrency:
+  group: update-example
+  cancel-in-progress: true
+
+env:
+  EXAMPLE_REPO: ebotiab/full-stack-blueprint-example
+  BRANCH: update-from-template
+
+jobs:
+  update:
+    name: Update the example project
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Is there a token for the example repository?
+        id: token
+        env:
+          TOKEN: ${{ secrets.EXAMPLE_REPO_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::EXAMPLE_REPO_TOKEN is not set: the example project was not updated."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.token.outputs.present == 'true'
+        with:
+          persist-credentials: false
+      # The token stays in this checkout's git configuration: the last step pushes with it.
+      - name: Check out the example project
+        if: steps.token.outputs.present == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.EXAMPLE_REPO }}
+          token: ${{ secrets.EXAMPLE_REPO_TOKEN }}
+          path: example
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        if: steps.token.outputs.present == 'true'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.token.outputs.present == 'true'
+        with:
+          node-version: 26
+      - name: Copier
+        if: steps.token.outputs.present == 'true'
+        run: uv tool install "copier==9.19.1"
+      - name: Update the example to this commit of the template
+        if: steps.token.outputs.present == 'true'
+        run: scripts/update-example.sh example "$GITHUB_SHA"
+      - name: Pull request in the example repository
+        if: steps.token.outputs.present == 'true'
+        working-directory: example
+        env:
+          GH_TOKEN: ${{ secrets.EXAMPLE_REPO_TOKEN }}
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "The example is already up to date."
+            exit 0
+          fi
+          version=$(sed -n 's/^_commit: //p' .copier-answers.yml)
+          title="Update from full-stack-blueprint $version"
+          body="Opened by the template's workflow \`update-example.yml\`: \`copier update\` to $version, then the lockfiles and the generated API files. It merges itself when the CI passes."
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add -A
+          git commit -m "$title"
+          git push --force origin "$BRANCH"
+          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
+            gh pr edit "$BRANCH" --title "$title" --body "$body"
+          else
+            gh pr create --base main --head "$BRANCH" --title "$title" --body "$body"
+          fi
+          gh pr merge "$BRANCH" --squash --auto

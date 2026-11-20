@@ -353,7 +353,7 @@ For every project:
 
 - **Logfire**: create a project; a write token as `LOGFIRE_TOKEN` on the API's platform; a read
   token in `~/.config/<slug>/logfire-read-token` for `obs status`; for browser errors, a frontend
-  application token as `VITE_LOGFIRE_TOKEN` in Vercel.
+  application's token and regional URL as `VITE_LOGFIRE_TOKEN` and `VITE_LOGFIRE_BASE_URL` in Vercel.
 - **Neon** (with a database): a project in an EU region (`aws-eu-central-1`); the direct connection
   string for Render, Railway, FastAPI Cloud and migrations; the pooled one (`-pooler`) for Vercel.
 - **GitHub**: protect `main` with the required checks `Backend` and `Frontend`, and allow auto-merge.
@@ -388,7 +388,7 @@ New → Blueprint → the repository; set `DATABASE_URL` and `LOGFIRE_TOKEN` whe
 <summary><b>Vercel</b> (the visor, or the <code>vercel</code> target)</summary>
 
 Import the repository: root `frontend` for the visor alone, the repository root for the `vercel`
-target. Set the environment variables `LOGFIRE_TOKEN`, `VITE_LOGFIRE_TOKEN` and, for `vercel` with
+target. Set the environment variables `LOGFIRE_TOKEN`, `VITE_LOGFIRE_TOKEN`, `VITE_LOGFIRE_BASE_URL` and, for `vercel` with
 a database, `DATABASE_URL` (pooled), plus the GitHub secrets of `deploy.yml` (`DATABASE_URL`
 direct, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`). With a non-Vercel API, check the
 API URL in `frontend/vercel.json`.

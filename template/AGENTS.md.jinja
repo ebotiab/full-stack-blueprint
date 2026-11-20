@@ -97,6 +97,8 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
 - **Migrations.** A schema change is a new file `backend/src/{{ package_name }}/db/migrations/NNNN_short_name.sql`
   (next number). Never edit an applied migration: the runner stores checksums and refuses changed files.
   The runner is idempotent and takes a PostgreSQL advisory lock, so concurrent starts are safe.
+  Each file runs in one transaction: a statement PostgreSQL refuses inside one (`CREATE INDEX
+  CONCURRENTLY`) fails; the docstring of `db/migrate.py` says what to do instead.
 {%- endif %}
 - **Configuration.** New settings go in `settings.py` with a local default and the `{{ env_prefix }}` prefix,
   and in `backend/.env.example`. Secrets never enter the repository; everything runs locally without credentials.

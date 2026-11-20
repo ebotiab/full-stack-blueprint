@@ -1,5 +1,5 @@
 # API image{% if api_deploy == 'render' %} for Render{% else %} for Railway{% endif %}. Built from backend/ (the service's root directory).
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim
 
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_NO_DEV=1 PYTHONUNBUFFERED=1

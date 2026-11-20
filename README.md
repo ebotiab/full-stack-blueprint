@@ -147,7 +147,7 @@ need no cloud account until you deploy.
 | --- | --- | --- | --- |
 | **git** and **make** | Keeps your code's history; runs the project's tasks | macOS: `xcode-select --install`<br>Ubuntu/Debian: `sudo apt install git make` | every project |
 | **uv** 0.9.17+ | Runs Python and installs its packages; it downloads the right Python by itself | `curl -LsSf https://astral.sh/uv/install.sh \| sh`<br>or `brew install uv` | every project |
-| **Copier** | Generates the project from this template | `uv tool install copier` | every project |
+| **Copier** 9.8+ | Generates the project from this template | `uv tool install copier` | every project |
 | **Node 24 LTS** (npm 11.10+) | Runs the visor's tools | [nodejs.org](https://nodejs.org), `brew install node@24` or `nvm install 24` | the visor |
 | **Docker Desktop** | Runs the local PostgreSQL; start it once after installing | [docs.docker.com/get-docker](https://docs.docker.com/get-docker/) | the database |
 | **GitHub CLI** | Creates the repository from the terminal | `brew install gh` or [cli.github.com](https://cli.github.com), then `gh auth login` | optional |

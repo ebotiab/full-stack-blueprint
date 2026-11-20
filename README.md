@@ -332,15 +332,26 @@ its `railway.json`/`railway.toml` format is deprecated and stops being read on 2
 </details>
 
 <details>
-<summary><b>Two defaults that will change</b></summary>
+<summary><b>Defaults and versions that will change</b></summary>
 
-Each is a one-line edit in `copier.yml` (the comment above the question says which line):
+Two defaults, each a one-line edit in `copier.yml` (the comment above the question says which line):
 
 - **`type_checker: ty`** once ty publishes a stable 1.0 release. Until then it is a 0.0.x beta:
   faster than pyright, but its diagnostics still change between releases.
 - **`api_deploy: fastapi_cloud`** once FastAPI Cloud offers all of: an EU region, a Dockerfile or a
   command that runs before start-up (for migrations), rollbacks that are no longer "coming soon",
   and active usage-based billing. Until then Render is the default: Docker, Frankfurt, a free plan.
+
+Two versions held back until every part of a project can run them:
+
+- **Python 3.15** (released in October 2026) once every deploy target runs it: Vercel's Python
+  runtime listed 3.12 to 3.14 in November 2026, and FastAPI Cloud needs the same check. The version
+  is written in `backend/pyproject.toml` (`requires-python`, ruff's `target-version` and the type
+  checker's version), `backend/.python-version`, the workflows, the Dockerfile's base image and
+  the standard-library list in `copier.yml`.
+- **PostgreSQL 19** (released on 19 November 2026) once it has its first minor release and Neon
+  offers it for new projects. The version is written in `docker-compose.yml` (the image and the
+  volume's name) and in the CI's `postgres` service.
 
 </details>
 

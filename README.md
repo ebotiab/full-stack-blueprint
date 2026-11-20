@@ -16,8 +16,8 @@ FastAPI · PostgreSQL · React · TypeScript, with tests, CI and deploy config i
 > [!TIP]
 > **See the result before you start.**
 > [**full-stack-blueprint-example**](https://github.com/ebotiab/full-stack-blueprint-example) is a
-> project generated from this template with every default answer. Browse its code, its README and
-> its passing CI to see exactly what you will get.
+> project generated from this template with every default answer, and regenerated after every
+> change here. Browse its code, its README and its passing CI to see exactly what you will get.
 
 ## At a glance
 
@@ -424,6 +424,11 @@ scripts/check-name-lengths.sh /tmp/fsb-lengths                           # ruff 
 
 The CI (`.github/workflows/ci.yml`) runs five combinations that cover every value of every option,
 plus the name-length check and the update check. Agents working on the template read [AGENTS.md](AGENTS.md).
+
+The example project follows `main`: after every push that changes what the template generates,
+`.github/workflows/update-example.yml` runs `scripts/update-example.sh` on a checkout of the
+example and opens a pull request there, which merges itself when the example's CI passes. It
+needs the secret `EXAMPLE_REPO_TOKEN` (the workflow's first comment says which token).
 
 ## License
 

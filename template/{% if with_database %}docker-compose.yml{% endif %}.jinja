@@ -2,7 +2,7 @@
 # Production uses Neon{% if api_deploy == 'railway' %} or Railway's PostgreSQL{% endif %} (README, "Deploy").
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     container_name: {{ project_slug }}-postgres
     environment:
       POSTGRES_USER: {{ package_name }}
@@ -10,8 +10,11 @@ services:
       POSTGRES_DB: {{ package_name }}
     ports:
       - "{{ postgres_port }}:5432"
+    # From PostgreSQL 18 on, the volume goes on /var/lib/postgresql (the data is in 18/docker inside
+    # it). One volume per major version: PostgreSQL does not start on another major's data, so a new
+    # major starts empty and `make setup` migrates it. `docker volume ls` lists the old ones.
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres18:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U {{ package_name }} -d {{ package_name }}"]
       interval: 2s
@@ -19,4 +22,4 @@ services:
       retries: 30
 
 volumes:
-  pgdata:
+  postgres18:

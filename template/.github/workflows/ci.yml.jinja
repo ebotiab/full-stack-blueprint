@@ -55,7 +55,7 @@ jobs:
 {%- if with_database %}
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18
         # No password: the database lives only for this job and is not reachable from outside.
         env:
           POSTGRES_USER: {{ package_name }}

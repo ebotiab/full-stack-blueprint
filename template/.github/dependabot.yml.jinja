@@ -1,6 +1,11 @@
 # Dependency updates. Every Monday Dependabot opens at most one pull request per ecosystem with
 # all minor and patch updates together, and one per major update (those tend to break something
 # and deserve their own review). They go through the CI like any pull request; none merges itself.
+#
+# Cooldown: Dependabot only proposes releases that are at least 7 days old. A compromised release
+# is usually found and withdrawn within days; security updates do not wait. The same window
+# applies wherever dependencies are resolved, so every update Dependabot opens can be locked:
+# uv (`exclude-newer` in backend/pyproject.toml){% if with_frontend %} and npm (`min-release-age` in frontend/.npmrc){% endif %}.
 version: 2
 
 updates:
@@ -9,6 +14,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 3
     groups:
       minor-and-patch:
@@ -20,6 +27,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 3
     groups:
       minor-and-patch:
@@ -38,6 +47,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 3
     groups:
       minor-and-patch:

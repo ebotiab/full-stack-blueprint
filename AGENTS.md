@@ -43,6 +43,9 @@ Neon or Logfire without the user's explicit go-ahead.
 - **Versions.** Python dependencies are lower bounds in `pyproject.toml.jinja`; the visor's are
   caret ranges except `oxfmt` (exact: beta formatter) and `openapi-typescript`, run with `npx` at
   an exact version because it needs TypeScript 5's compiler API and the project uses TypeScript 7.
+  Generated projects only install releases that are at least 7 days old (uv `exclude-newer`, npm
+  `min-release-age`, Dependabot `cooldown`): a new lower bound or range must name a version
+  published at least a week ago, or `make setup` cannot lock.
   Check the current docs of a platform before changing its deploy files; Railway's
   `railway.json` is deprecated (cutoff 2026-12-01), hence `.railway/railway.ts`.
 - **Defaults that will change**: `type_checker` becomes `ty` at ty 1.0; `api_deploy` becomes

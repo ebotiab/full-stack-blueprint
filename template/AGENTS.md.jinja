@@ -100,6 +100,11 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   saying they are still running.
 - **Generated files.** `backend/openapi.json`{% if with_frontend %}, `frontend/src/api/schema.d.ts`{% endif %} and the lockfiles are generated:
   regenerate them, never edit them by hand.
+- **Dependencies.** uv{% if with_frontend %} and npm{% endif %} only install releases that are at least 7 days old, and Dependabot
+  waits as long: a compromised release is usually found and withdrawn within days. A newer version
+  fails to resolve, so pick an older one. Exempting a package for an urgent fix needs the user's
+  go-ahead: `exclude-newer-package = { <name> = false }` in `backend/pyproject.toml`{% if with_frontend %}, or
+  `npm install --min-release-age=0 <name>@<version>` in `frontend/`{% endif %}.
 
 ## Deploy
 

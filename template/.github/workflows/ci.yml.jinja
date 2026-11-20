@@ -55,7 +55,8 @@ jobs:
 {%- if with_database %}
     services:
       postgres:
-        image: postgres:18
+        # The same image as the local database (docker-compose.yml).
+        image: postgres:18-alpine
         # No password: the database lives only for this job and is not reachable from outside.
         env:
           POSTGRES_USER: {{ package_name }}

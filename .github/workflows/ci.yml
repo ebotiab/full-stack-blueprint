@@ -61,7 +61,7 @@ jobs:
           python-version: "3.14"
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
       - name: Copier
         run: uv tool install "copier==9.19.1"
       - name: Generate and check

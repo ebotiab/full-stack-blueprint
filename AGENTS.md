@@ -55,7 +55,8 @@ Neon or Logfire without the user's explicit go-ahead.
 - **A new option or value** goes into at least one row of the CI matrix and into the README tables.
 - **Nothing from any particular project** (domain names, data, people) enters the template.
 - **Versions.** Python dependencies are lower bounds in `pyproject.toml.jinja`; the visor's are
-  caret ranges except `oxfmt` (exact: beta formatter) and `openapi-typescript`, run with `npx` at
+  caret ranges except `oxfmt` (exact: beta formatter), `oxlint-tsgolint` (tilde: its version
+  follows TypeScript's, 7.0.x with TypeScript 7.0) and `openapi-typescript`, run with `npx` at
   an exact version because it needs TypeScript 5's compiler API and the project uses TypeScript 7.
   Generated projects only install releases that are at least 7 days old (uv `exclude-newer`, npm
   `min-release-age`, Dependabot `cooldown`): a new lower bound or range must name a version

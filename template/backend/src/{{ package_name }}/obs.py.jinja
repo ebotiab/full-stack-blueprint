@@ -17,7 +17,7 @@ from typing import Any, Protocol
 
 PROJECT = "{{ project_slug }}"
 SERVICE = f"{PROJECT}-api"
-TOKEN_ENV = "LOGFIRE_READ_TOKEN"
+TOKEN_ENV = "LOGFIRE_READ_TOKEN"  # noqa: S105
 TOKEN_FILE = Path.home() / ".config" / PROJECT / "logfire-read-token"
 #: From this level on a record is an error (Logfire's numeric levels: 17 = error).
 ERROR_LEVEL = 17

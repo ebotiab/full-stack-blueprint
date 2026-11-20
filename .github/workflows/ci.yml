@@ -13,6 +13,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Every Monday: a generated project installs the newest releases that are a week old, so a new
+  # release of a dependency can break new projects without any commit here.
+  schedule:
+    - cron: "17 5 * * 1"
   workflow_dispatch:
 
 permissions:

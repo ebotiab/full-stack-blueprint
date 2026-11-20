@@ -423,7 +423,9 @@ scripts/check-name-lengths.sh /tmp/fsb-lengths                           # ruff 
 ```
 
 The CI (`.github/workflows/ci.yml`) runs five combinations that cover every value of every option,
-plus the name-length check and the update check. Agents working on the template read [AGENTS.md](AGENTS.md).
+plus the name-length check and the update check, on every pull request and every Monday: a new
+release of a dependency can break new projects without any commit here.
+Agents working on the template read [AGENTS.md](AGENTS.md).
 
 ## License
 

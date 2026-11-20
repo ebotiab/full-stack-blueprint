@@ -29,9 +29,10 @@ Neon or Logfire without the user's explicit go-ahead.
   symlink to `template/.agents/skills` (`_preserve_symlinks`).
 - `scripts/check-combination.sh`: generates a project from the working tree and runs its
   `make setup` and `make check`. `scripts/check-update.sh`: checks that `copier update` applies a
-  template change cleanly.
-- `.github/workflows/ci.yml`: five combinations that cover every value of every option, and the
-  update check.
+  template change cleanly. `scripts/check-name-lengths.sh`: generates the backend for every
+  package-name length (1 to 58) and runs ruff on all of them.
+- `.github/workflows/ci.yml`: five combinations that cover every value of every option, the
+  name-length check and the update check.
 - `.agents/skills/`: this repository's skills (`.claude/skills` links here).
   `.claude/settings.json` turns off Claude Code plugins this repository does not use.
 
@@ -40,11 +41,14 @@ Neon or Logfire without the user's explicit go-ahead.
 - **Generated code must pass its own checks** for every combination: ruff format and lint, pyright
   and ty, pytest, oxfmt, oxlint, tsc, Vitest, build, Playwright. Watch Jinja whitespace
   (`{%- … %}` / `{% … -%}`) and line length: a long project name must not push a rendered line past
-  100 characters (the CI has a long-name combination). A mid-length name matters too: ruff format
-  rewraps a line just over 100 characters when it fits once wrapped (the CI has a mid-length-name
-  combination). Prefer code whose line length does not depend on answers.
+  100 characters (the CI has a combination with the longest name, 58 characters, the limit in
+  `copier.yml`). Any length up to it matters too: ruff format rewraps a line just over 100
+  characters when it fits once wrapped (the CI's name-length check tries them all). Prefer code
+  whose line length does not depend on answers: an f-string over a constant such as `PREFIX`
+  instead of the answer written into the line.
 - **Before a pull request**, run `scripts/check-combination.sh` for the combinations your change
-  touches (at least the defaults), and `scripts/check-update.sh` when you change file layout.
+  touches (at least the defaults), `scripts/check-update.sh` when you change file layout, and
+  `scripts/check-name-lengths.sh` when you change a Python line that contains an answer.
   They take a few minutes each: run them in the background, once, at the end.
 - **A new option or value** goes into at least one row of the CI matrix and into the README tables.
 - **Nothing from any particular project** (domain names, data, people) enters the template.

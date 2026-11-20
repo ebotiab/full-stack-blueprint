@@ -195,7 +195,7 @@ when the CI passes. After that, merging into `main` deploys.
 | --- | --- | --- |
 | `project_name` | `My Project` | any text |
 | `project_slug` | from the name (`my-project`) | kebab-case: repository, CLI command, service names |
-| `package_name` | from the slug (`my_project`) | Python package |
+| `package_name` | from the slug (`my_project`) | Python package, at most 58 characters |
 | `env_prefix` | from the package (`MY_PROJECT_`) | prefix of the project's environment variables |
 | `description` | `A FastAPI API with a React visor.` | one sentence |
 | `github_repo` | `your-github-user/<slug>` | `owner/name`; used for links, Logfire and Railway |
@@ -277,10 +277,11 @@ names like `{% if with_frontend %}frontend{% endif %}` make whole files or folde
 scripts/check-combination.sh /tmp/fsb-a                                  # defaults: make setup + make check
 scripts/check-combination.sh /tmp/fsb-b --data api_deploy=railway --data type_checker=ty
 scripts/check-update.sh /tmp/fsb-update                                  # copier update applies cleanly
+scripts/check-name-lengths.sh /tmp/fsb-lengths                           # ruff for every name length
 ```
 
 The CI (`.github/workflows/ci.yml`) runs five combinations that cover every value of every option,
-plus the update check. Agents working on the template read [AGENTS.md](AGENTS.md).
+plus the name-length check and the update check. Agents working on the template read [AGENTS.md](AGENTS.md).
 
 ## License
 

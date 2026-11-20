@@ -34,15 +34,17 @@ jobs:
           - name: defaults (render, pyright, visor, database)
             data: ""
           # A mid-length name: lines just over 100 characters that fit once wrapped are the ones
-          # ruff format rewrites (the long name below is too long for that to happen).
+          # ruff format rewrites. The name-lengths job below checks every length with ruff alone.
           - name: railway + ty, mid-length name
             data: >-
               --data api_deploy=railway --data type_checker=ty
               --data "project_name=Medium Name Check"
-          - name: fastapi_cloud, API only, long name
+          # The longest name copier.yml accepts: a 58-character package, whose test database
+          # (`<package>_test`) is exactly PostgreSQL's 63-byte limit.
+          - name: fastapi_cloud, API only, longest name
             data: >-
               --data api_deploy=fastapi_cloud --data with_frontend=false
-              --data "project_name=Very Long Project Name For Formatting Checks"
+              --data "project_name=Very Long Project Name For Formatting Checks Up To The Cap"
           - name: vercel + ty, no database
             data: --data api_deploy=vercel --data type_checker=ty --data with_database=false
           - name: vercel with database
@@ -59,6 +61,22 @@ jobs:
         run: uv tool install "copier==9.19.1"
       - name: Generate and check
         run: scripts/check-combination.sh "$RUNNER_TEMP/project" ${{ matrix.data }}
+
+  # The names end up in Python lines, and ruff format rewraps some of them only for a band of
+  # name lengths: this job generates the backend for every package-name length and runs ruff.
+  name-lengths:
+    name: every name length passes ruff
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          python-version: "3.14"
+      - name: Copier
+        run: uv tool install "copier==9.19.1"
+      - name: Generate every package-name length, run ruff
+        run: scripts/check-name-lengths.sh "$RUNNER_TEMP/lengths"
 
   update:
     name: copier update applies cleanly

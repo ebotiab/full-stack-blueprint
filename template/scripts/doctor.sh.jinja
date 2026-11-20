@@ -50,9 +50,9 @@ if command -v docker >/dev/null 2>&1; then
     # The local PostgreSQL port must be free, or already ours.
     owner=$(docker ps --filter "publish={{ postgres_port }}" --format '{{ '{{' }}.Names{{ '}}' }}' | head -n1)
     if [ -n "$owner" ] && [ "$owner" != "{{ project_slug }}-postgres" ]; then
-      bad "port {{ postgres_port }} is used by the container $owner" "stop it, or change the port in docker-compose.yml, backend/src/{{ package_name }}/settings.py and the Makefile (POSTGRES_PORT)"
+      bad "port {{ postgres_port }} is used by the container $owner" "stop it, or move this project to a free port (commit your work first): copier update --defaults --data postgres_port=<port>"
     elif [ -z "$owner" ] && (exec 3<>/dev/tcp/127.0.0.1/{{ postgres_port }}) 2>/dev/null; then
-      bad "port {{ postgres_port }} is used by another program" "stop it, or change the port in docker-compose.yml, backend/src/{{ package_name }}/settings.py and the Makefile (POSTGRES_PORT)"
+      bad "port {{ postgres_port }} is used by another program" "stop it, or move this project to a free port (commit your work first): copier update --defaults --data postgres_port=<port>"
     else
       ok "port {{ postgres_port }} is available for PostgreSQL"
     fi

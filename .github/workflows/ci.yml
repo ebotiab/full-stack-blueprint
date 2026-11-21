@@ -39,9 +39,10 @@ jobs:
             data: ""
           # A mid-length name: lines just over 100 characters that fit once wrapped are the ones
           # ruff format rewrites. The name-lengths job below checks every length with ruff alone.
+          # Also sign-in (auth=sessions) on a long-running server.
           - name: railway + ty, mid-length name
             data: >-
-              --data api_deploy=railway --data type_checker=ty
+              --data api_deploy=railway --data type_checker=ty --data auth=sessions
               --data "project_name=Medium Name Check"
           # The longest name copier.yml accepts: a 58-character package, whose test database
           # (`<package>_test`) is exactly PostgreSQL's 63-byte limit.
@@ -52,10 +53,11 @@ jobs:
           - name: vercel + ty, no database
             data: --data api_deploy=vercel --data type_checker=ty --data with_database=false
           # Also a long description: it lands in the visor's index.html, which oxfmt formats, and
-          # in Python strings. (The name is a required check on main: keep it.)
+          # in Python strings; and sign-in on serverless functions. (The name is a required check
+          # on main: keep it.)
           - name: vercel with database
             data: >-
-              --data api_deploy=vercel --data postgres_port=5544
+              --data api_deploy=vercel --data postgres_port=5544 --data auth=sessions
               --data "description=A long one-sentence description that keeps going well past
               the width at which oxfmt would wrap an HTML line."
     steps:

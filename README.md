@@ -122,7 +122,8 @@ my-app/
 - **API** (`backend/`): Python 3.14 with uv and uv_build, FastAPI, asyncpg without an ORM and a
   small packaged SQL migration runner (idempotent, PostgreSQL advisory lock, checksums),
   pydantic-settings, a Typer CLI (`migrate`, `openapi`, `obs status`), Logfire (works without a
-  token), pytest against a real PostgreSQL, ruff, and pyright or ty.
+  token), pytest against a real PostgreSQL, ruff, and pyright or ty. Optional sign-in
+  (`auth: sessions`): accounts, session cookies and API keys in PostgreSQL, with pwdlib (Argon2id).
 - **Visor** (`frontend/`, optional): Vite 8, React 19, TypeScript 7, a client typed from the API's
   OpenAPI schema (`openapi-typescript` + `openapi-fetch`), oxlint with type-aware rules, oxfmt
   (exact version), Vitest,
@@ -310,9 +311,37 @@ when the CI passes. After that, merging into `main` deploys.
 | `with_frontend` | `true` | include the visor |
 | `with_database` | `true` | include PostgreSQL |
 | `postgres_port` | `5434` | host port of the local PostgreSQL (asked only with a database) |
+| `auth` | `none` | `none`, `sessions` (own accounts in PostgreSQL; needs the database) |
 | `type_checker` | `pyright` | `pyright`, `ty` |
 | `api_deploy` | `render` | `render`, `fastapi_cloud`, `railway`, `vercel` |
 | `api_public_url` | the platform's usual URL | where the visor's `vercel.json` proxies `/api` (asked only with a visor and a non-Vercel API) |
+
+<details>
+<summary><b>What <code>auth: sessions</code> adds</b></summary>
+
+Accounts with email and password, browser sessions and API keys, all in the project's PostgreSQL
+and in its own code (`backend/src/<package>/auth/`, one migration, no auth service to sign up
+for). It follows OWASP ASVS 5.0 and RFC 10017, which recommends a session cookie when the browser
+app and the API share an origin, as they do here on every target:
+
+- **Sessions**: an opaque token in a `__Host-` cookie (HttpOnly, Secure, SameSite=Lax), stored as
+  a SHA-256 hash; 7 days without use or 30 in total end it; logout deletes it, and a new password
+  or a deactivated account ends every session of the user. No secret key to generate or rotate.
+- **Passwords**: Argon2id through pwdlib with OWASP's minimum profile, rehashed at login when the
+  parameters change; the same answer and the same work for an unknown email and a wrong password;
+  ten attempts per account, then one per minute (a token bucket in PostgreSQL, so it also works on
+  serverless functions).
+- **Cross-site requests**: a request that changes state with the cookie must carry
+  `Sec-Fetch-Site: same-origin` (or a listed `Origin` in browsers from before 2023).
+- **API keys** for scripts and projects without a visor: `Authorization: Bearer <key>`, created,
+  listed and revoked with the CLI, which also creates the accounts (there is no sign-up route).
+- **Routes** take `user: CurrentUser` or `AdminUser`; `tests/test_auth.py` checks every rule above
+  against the real PostgreSQL.
+
+`none` stays the default: a project without accounts carries no security code, and
+`copier update --defaults --data auth=sessions` adds it later.
+
+</details>
 
 <details>
 <summary><b>What each deploy target generates</b></summary>

@@ -17,6 +17,10 @@ dependencies = [
     "httpx>=0.28.1",
     "logfire[{% if with_database %}asyncpg,{% endif %}fastapi,httpx]>=5.6.0",
     "pydantic-settings>=2.16.2",
+{%- if auth == 'sessions' %}
+    # Argon2id password hashing (auth/passwords.py).
+    "pwdlib[argon2]>=0.4.0",
+{%- endif %}
     "typer>=0.29.1",
     "uvicorn[standard]>=0.54.0",
 ]
@@ -78,8 +82,13 @@ select = [
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
+{%- if auth == 'sessions' %}
+# Tests assert and sign in with made-up passwords.
+"tests/*" = ["S101", "S105", "S106"]
+{%- else %}
 # Tests assert.
 "tests/*" = ["S101"]
+{%- endif %}
 # Logfire's query API takes SQL as text, without parameters: obs.py only puts its own constants
 # and a validated environment name into it.
 "**/obs.py" = ["S608"]

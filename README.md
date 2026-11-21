@@ -326,8 +326,11 @@ when the CI passes. After that, merging into `main` deploys.
 
 Every project also reads its own `<PREFIX>COMMIT` first. With a visor, `frontend/vercel.json`
 deploys it to Vercel; with `vercel`, visor and API share one project and one domain (`/api`), so
-there is no CORS anywhere. Railway uses `.railway/railway.ts` (Infrastructure as Code) because
-its `railway.json`/`railway.toml` format is deprecated and stops being read on 2026-12-01.
+there is no CORS anywhere. API responses carry `Cache-Control: no-store` unless a route sets its
+own, and `frontend/vercel.json` sends `x-vercel-enable-rewrite-caching: 0` for `/api`: Vercel
+projects created since 2026-04-06 otherwise let its CDN cache what a proxied API returns. Railway
+uses `.railway/railway.ts` (Infrastructure as Code) because its `railway.json`/`railway.toml`
+format is deprecated and stops being read on 2026-12-01.
 
 </details>
 

@@ -41,6 +41,7 @@ answers and is only changed by `copier update` (see "Template updates").
 {%- endif %}
 {%- if with_frontend and api_deploy != 'vercel' %}
 - `frontend/vercel.json`: the visor on Vercel; it proxies `/api` to the API, so there is no CORS.
+  `x-vercel-enable-rewrite-caching: 0` keeps Vercel's CDN from caching what the proxy returns.
 {%- endif %}
 - `.agents/skills/`: procedures for agents (`.claude/skills` links here). `.vscode/`: editor settings that match the checks.
 
@@ -100,6 +101,10 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   Each file runs in one transaction: a statement PostgreSQL refuses inside one (`CREATE INDEX
   CONCURRENTLY`) fails; the docstring of `db/migrate.py` says what to do instead.
 {%- endif %}
+- **No caching by default.** Every API response carries `Cache-Control: no-store` unless its route
+  sets `Cache-Control` itself (`api/main.py`), so no shared cache serves one caller's response to
+  another. Set it only on routes whose data is public{% if with_frontend and api_deploy != 'vercel' %}; Vercel's CDN still skips the proxied `/api`
+  until `frontend/vercel.json` turns `x-vercel-enable-rewrite-caching` back on for that path{% endif %}.
 - **Configuration.** New settings go in `settings.py` with a local default and the `{{ env_prefix }}` prefix,
   and in `backend/.env.example`. Secrets never enter the repository; everything runs locally without credentials.
 - **No repeated work.** Read what the task needs, not every file. Run long commands (`make check`,

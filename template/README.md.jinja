@@ -62,7 +62,8 @@ HttpOnly session cookie (7 days without use or 30 in total end it). Scripts send
 explains each one. Ten wrong passwords in a row pause an account's sign-in for a minute per attempt.
 {%- if email == 'smtp' %}
 A forgotten password is reset with a one-time code sent by email (`POST /api/auth/password-reset`, then
-`/api/auth/password-reset/confirm`); the code works once, for an hour, and resetting ends every session.{% endif %}
+`/api/auth/password-reset/confirm`); the code works once, for an hour, and resetting ends every session.{% if with_frontend %}
+The visor's sign-in form has a "Forgot your password?" button for it.{% endif %}{% endif %}
 {%- elif auth == 'oidc' %}
 
 ## Sign-in

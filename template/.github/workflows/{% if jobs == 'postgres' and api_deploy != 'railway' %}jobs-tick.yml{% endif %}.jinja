@@ -1,0 +1,46 @@
+# Runs the background jobs every 10 minutes: GitHub calls the API's /api/jobs/tick, which queues
+# the periodic tasks that are due and runs due jobs for up to 50 seconds.
+{%- if api_deploy == 'render' %}
+# On Render's free plan this also keeps the API awake (it sleeps after 15 idle minutes), which uses
+# about 720 of the workspace's 750 free hours a month. Make the schedule hourly to let it sleep.
+{%- elif api_deploy == 'fastapi_cloud' %}
+# FastAPI Cloud scales the API to zero when idle; each tick wakes it.
+{%- elif api_deploy == 'vercel' %}
+# Vercel functions do not run between requests, so this is what runs periodic tasks and retries.
+# On the Pro plan, a Vercel Cron Job on /api/jobs/tick can replace it (README, "Background jobs").
+{%- endif %}
+#
+# Needs the repository variable API_URL (the address that serves /api, e.g. https://{{ project_slug }}.vercel.app)
+# and the secret CRON_SECRET, with the same value as on the API's platform. Without them the job
+# says so and does nothing. GitHub may start a scheduled run late or skip it when it is busy, and
+# in a public repository it turns schedules off after 60 days without activity.
+name: Jobs tick
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: jobs-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    name: Run due jobs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /api/jobs/tick
+        env:
+          API_URL: ${{ '{{' }} vars.API_URL {{ '}}' }}
+          CRON_SECRET: ${{ '{{' }} secrets.CRON_SECRET {{ '}}' }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::notice::API_URL (variable) or CRON_SECRET (secret) is not set: no tick (README, 'Deploy')."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 120 --request POST \
+            --header "Authorization: Bearer $CRON_SECRET" "${API_URL%/}/api/jobs/tick"

@@ -1,0 +1,281 @@
+"""Background jobs against a real PostgreSQL database: queue, retries, leases, schedules, tick."""
+
+import asyncio
+import datetime as dt
+from collections.abc import AsyncIterator
+from typing import Any
+
+import asyncpg
+import httpx
+import pytest
+from asgi_lifespan import LifespanManager
+from fastapi import BackgroundTasks, Request
+from typer.testing import CliRunner
+
+from {{ package_name }}.api.deps import ConnectionDep
+from {{ package_name }}.api.main import create_app
+from {{ package_name }}.cli import app as cli
+from {{ package_name }}.db.migrate import migrate
+from {{ package_name }}.db.pool import connect
+from {{ package_name }}.jobs import queue
+from {{ package_name }}.jobs.schedule import (
+    Daily,
+    Every,
+)
+from {{ package_name }}.jobs.tasks import TASKS
+from {{ package_name }}.settings import PREFIX, get_settings
+
+UTC = dt.UTC
+
+
+class Recorder:
+    """A task that records its payloads, and fails its first `failures` calls."""
+
+    def __init__(self, failures: int = 0) -> None:
+        self.payloads: list[dict[str, Any]] = []
+        self.failures = failures
+
+    async def __call__(self, conn: asyncpg.Connection, payload: dict[str, Any]) -> None:
+        if self.failures:
+            self.failures -= 1
+            raise RuntimeError("not yet")
+        self.payloads.append(payload)
+
+
+@pytest.fixture
+async def conn(db_conn: asyncpg.Connection) -> asyncpg.Connection:
+    await migrate(db_conn)
+    return db_conn
+
+
+@pytest.fixture
+def recorder(monkeypatch: pytest.MonkeyPatch) -> Recorder:
+    task = Recorder()
+    monkeypatch.setitem(TASKS, "record", task)
+    return task
+
+
+async def run(conn: asyncpg.Connection) -> int:
+    return await queue.run_due(conn, seconds=10, schedule=[])
+
+
+async def test_a_queued_job_runs_once_and_is_deleted(
+    conn: asyncpg.Connection, recorder: Recorder
+) -> None:
+    await queue.enqueue(conn, "record", {"n": 1})
+    assert await run(conn) == 1
+    assert recorder.payloads == [{"n": 1}]
+    assert await conn.fetchval("SELECT count(*) FROM jobs") == 0
+    assert await run(conn) == 0
+
+
+async def test_an_unknown_task_cannot_be_queued(conn: asyncpg.Connection) -> None:
+    with pytest.raises(ValueError, match="no_such_task"):
+        await queue.enqueue(conn, "no_such_task")
+
+
+async def test_a_job_queued_in_a_rolled_back_transaction_never_runs(
+    conn: asyncpg.Connection, recorder: Recorder
+) -> None:
+    async def change_that_fails() -> None:
+        async with conn.transaction():
+            await queue.enqueue(conn, "record", {"n": 1})
+            raise RuntimeError("the change that needed the job failed")
+
+    with pytest.raises(RuntimeError):
+        await change_that_fails()
+    assert await run(conn) == 0
+
+
+async def test_a_delayed_job_waits(conn: asyncpg.Connection, recorder: Recorder) -> None:
+    await queue.enqueue(conn, "record", delay=dt.timedelta(minutes=5))
+    assert await run(conn) == 0
+
+
+async def test_a_failure_is_retried_later_then_kept_as_failed(
+    conn: asyncpg.Connection, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    task = Recorder(failures=queue.MAX_ATTEMPTS)
+    monkeypatch.setitem(TASKS, "record", task)
+    job_id = await queue.enqueue(conn, "record")
+    assert await run(conn) == 1
+    row = await conn.fetchrow("SELECT * FROM jobs WHERE id = $1", job_id)
+    assert row is not None
+    assert row["attempts"] == 1
+    assert row["failed_at"] is None
+    assert row["last_error"] == "RuntimeError: not yet"
+    assert row["run_at"] > dt.datetime.now(UTC) + dt.timedelta(seconds=20)
+    assert await run(conn) == 0  # not due yet
+    for _ in range(queue.MAX_ATTEMPTS - 1):
+        await conn.execute("UPDATE jobs SET run_at = now()")
+        assert await run(conn) == 1
+    assert await conn.fetchval("SELECT failed_at IS NOT NULL FROM jobs") is True
+    await conn.execute("UPDATE jobs SET run_at = now()")
+    assert await run(conn) == 0  # failed jobs are not picked again
+    assert task.payloads == []
+
+
+async def test_a_job_whose_lease_ran_out_runs_again(
+    conn: asyncpg.Connection, recorder: Recorder
+) -> None:
+    await queue.enqueue(conn, "record")
+    await conn.execute("UPDATE jobs SET attempts = 1, locked_until = now() + interval '1 minute'")
+    assert await run(conn) == 0  # another worker holds it
+    await conn.execute("UPDATE jobs SET locked_until = now() - interval '1 second'")
+    assert await run(conn) == 1  # that worker died
+    assert len(recorder.payloads) == 1
+
+
+async def test_concurrent_workers_run_each_job_once(
+    conn: asyncpg.Connection, db_url: str, recorder: Recorder
+) -> None:
+    for n in range(20):
+        await queue.enqueue(conn, "record", {"n": n})
+
+    async def worker() -> int:
+        async with connect(db_url) as own:
+            return await run(own)
+
+    results = await asyncio.gather(worker(), worker(), worker())
+    assert sum(results) == 20
+    assert sorted(p["n"] for p in recorder.payloads) == list(range(20))
+
+
+def test_slots() -> None:
+    now = dt.datetime(2026, 11, 22, 10, 7, tzinfo=UTC)
+    assert Every("t", minutes=15).slot(now) == dt.datetime(2026, 11, 22, 10, 0, tzinfo=UTC)
+    assert Daily("t", at=dt.time(3, 0)).slot(now) == dt.datetime(2026, 11, 22, 3, 0, tzinfo=UTC)
+    before = dt.datetime(2026, 11, 22, 2, 0, tzinfo=UTC)
+    assert Daily("t", at=dt.time(3, 0)).slot(before) == dt.datetime(2026, 11, 21, 3, 0, tzinfo=UTC)
+
+
+async def test_a_periodic_task_is_queued_once_per_slot(
+    conn: asyncpg.Connection, db_url: str, recorder: Recorder
+) -> None:
+    schedule = [Every("record", minutes=15)]
+    now = dt.datetime(2026, 11, 22, 10, 7, tzinfo=UTC)
+
+    async def tick(at: dt.datetime) -> list[str]:
+        async with connect(db_url) as own:
+            return await queue.enqueue_scheduled(own, schedule, now=at)
+
+    results = await asyncio.gather(tick(now), tick(now), tick(now))
+    assert sorted(len(r) for r in results) == [0, 0, 1]
+    assert await queue.enqueue_scheduled(conn, schedule, now=now + dt.timedelta(minutes=5)) == []
+    later = now + dt.timedelta(minutes=10)
+    assert await queue.enqueue_scheduled(conn, schedule, now=later) == ["record"]
+    assert await conn.fetchval("SELECT count(*) FROM jobs") == 2
+
+
+def test_the_project_tasks_are_all_scheduled_by_known_names() -> None:
+    from {{ package_name }}.jobs.tasks import SCHEDULE
+
+    assert {periodic.task for periodic in SCHEDULE} <= set(TASKS)
+
+
+@pytest.fixture
+async def http(
+    app_settings: None, monkeypatch: pytest.MonkeyPatch
+) -> AsyncIterator[httpx.AsyncClient]:
+    monkeypatch.setenv(f"{PREFIX}CRON_SECRET", "from-the-scheduler")
+    get_settings.cache_clear()
+    app = create_app()
+    transport = httpx.ASGITransport(app=app)
+    async with (
+        LifespanManager(app),
+        httpx.AsyncClient(transport=transport, base_url="https://test") as client,
+    ):
+        yield client
+
+
+async def test_the_tick_needs_the_secret_and_runs_due_jobs(
+    http: httpx.AsyncClient, conn: asyncpg.Connection, recorder: Recorder
+) -> None:
+    await queue.enqueue(conn, "record", {"n": 1})
+    assert (await http.post("/api/jobs/tick")).status_code == 401
+    wrong = {"Authorization": "Bearer guessed"}
+    assert (await http.post("/api/jobs/tick", headers=wrong)).status_code == 401
+    right = {"Authorization": "Bearer from-the-scheduler"}
+    response = await http.get("/api/jobs/tick", headers=right)
+    assert response.status_code == 200
+    assert response.json()["ran"] >= 1
+    assert recorder.payloads == [{"n": 1}]
+
+
+async def test_without_a_secret_the_tick_is_off(
+    app_settings: None, conn: asyncpg.Connection
+) -> None:
+    app = create_app()
+    transport = httpx.ASGITransport(app=app)
+    async with (
+        LifespanManager(app),
+        httpx.AsyncClient(transport=transport, base_url="https://test") as client,
+    ):
+        response = await client.post("/api/jobs/tick", headers={"Authorization": "Bearer "})
+    assert response.status_code == 503
+
+
+async def test_run_soon_starts_a_queued_job_after_the_response(
+    app_settings: None, conn: asyncpg.Connection, recorder: Recorder
+) -> None:
+    app = create_app()
+
+    @app.post("/api/test/queue")
+    async def queue_work(
+        db: ConnectionDep, request: Request, background: BackgroundTasks
+    ) -> dict[str, str]:
+        await queue.enqueue(db, "record", {"n": 7})
+        queue.run_soon(background, request)
+        return {}
+
+    transport = httpx.ASGITransport(app=app)
+    async with (
+        LifespanManager(app),
+        httpx.AsyncClient(transport=transport, base_url="https://test") as client,
+    ):
+        assert (await client.post("/api/test/queue")).status_code == 200
+    assert recorder.payloads == [{"n": 7}]
+
+
+async def test_the_worker_loop_runs_jobs_until_cancelled(
+    conn: asyncpg.Connection, db_url: str, recorder: Recorder
+) -> None:
+    from {{ package_name }}.db.pool import Database
+
+    await queue.enqueue(conn, "record", {"n": 1})
+    database = Database(db_url)
+    worker = asyncio.create_task(queue.run_forever(database, poll_seconds=0.05))
+    try:
+        for _ in range(100):
+            if recorder.payloads:
+                break
+            await asyncio.sleep(0.05)
+    finally:
+        worker.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await worker
+        await database.close()
+    assert recorder.payloads == [{"n": 1}]
+
+
+def test_the_cli_lists_and_retries_failed_jobs(app_settings: None) -> None:
+    runner = CliRunner()
+    assert runner.invoke(cli, ["migrate"]).exit_code == 0
+
+    async def add_failed_job() -> int:
+        async with connect(get_settings().database_url) as own:
+            job_id = await queue.enqueue(own, "prune_failed_jobs")
+            await own.execute(
+                "UPDATE jobs SET failed_at = now(), attempts = 5, last_error = 'Boom' WHERE id = $1",
+                job_id,
+            )
+            return job_id
+
+    job_id = asyncio.run(add_failed_job())
+    listed = runner.invoke(cli, ["jobs", "failed"])
+    assert "prune_failed_jobs" in listed.stdout
+    assert "Boom" in listed.stdout
+    assert runner.invoke(cli, ["jobs", "retry", "--id", str(job_id)]).exit_code == 0
+    assert runner.invoke(cli, ["jobs", "retry", "--id", str(job_id)]).exit_code == 1
+    ran = runner.invoke(cli, ["jobs", "run", "--seconds", "5"])
+    assert ran.exit_code == 0, ran.output

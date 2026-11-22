@@ -79,7 +79,20 @@ answers only signed-in users. It needs `VITE_OIDC_AUTHORITY` and `VITE_OIDC_CLIE
 Vercel (`frontend/.env.example`).{% endif %}
 {%- endif %}
 
-## Deploy
+{% if jobs == 'postgres' %}## Background jobs
+
+Work that may fail or take long runs outside the request, from the `jobs` table in PostgreSQL:
+add a task to `backend/src/{{ package_name }}/jobs/tasks.py`, queue it from a route with `queue.enqueue` (in the same
+transaction as the change that needs it), and periodic tasks go in its `SCHEDULE`. A failed job is
+retried five times with growing delays; `uv run {{ project_slug }} jobs failed` lists the ones that gave up and
+`jobs retry --id N` queues one again. {% if api_deploy == 'railway' %}The API process runs the jobs (Railway keeps it running), so nothing
+else is needed; a separate worker service with `{{ project_slug }} jobs work` takes long jobs off it.{% elif api_deploy == 'vercel' %}Vercel functions do not run between requests: jobs start right
+after the request that queued them, and `.github/workflows/jobs-tick.yml` runs periodic tasks and retries every 10
+minutes (on Vercel Pro, a Cron Job on `/api/jobs/tick` can do it every minute).{% else %}The API process runs them while it is awake, and
+`.github/workflows/jobs-tick.yml` calls `/api/jobs/tick` every 10 minutes for periodic tasks and retries.{% endif %}
+Locally, `make dev` runs them in the API process.
+
+{% endif %}## Deploy
 
 Pushing to `main` deploys; the CI must pass first. These one-time steps connect the services.
 None of them is needed to develop locally.
@@ -94,6 +107,10 @@ None of them is needed to develop locally.
 sending domain there, and set on the API's platform `{{ env_prefix }}SMTP_HOST`, `{{ env_prefix }}SMTP_PORT` (587),
 `{{ env_prefix }}SMTP_SECURITY` (`starttls`), `{{ env_prefix }}SMTP_USERNAME`, `{{ env_prefix }}SMTP_PASSWORD` and `{{ env_prefix }}EMAIL_FROM`. Check
 them from `backend/` with those variables set: `uv run {{ project_slug }} send-test-email --to you@example.com`.
+
+{% endif %}{% if jobs == 'postgres' and api_deploy != 'railway' %}**Background jobs.** Generate a secret (`python3 -c "import secrets; print(secrets.token_urlsafe(32))"`) and set it as
+`{{ env_prefix }}CRON_SECRET` on the API's platform{% if api_deploy == 'vercel' %} (or `CRON_SECRET`, the name Vercel Cron reads){% endif %} and as the repository secret `CRON_SECRET` in GitHub; add the repository
+variable `API_URL` with the address that serves `/api`. `jobs-tick.yml` then runs every 10 minutes.
 
 {% endif %}**Logfire.** Create a project at https://logfire.pydantic.dev. Create a **write token** (Settings →
 Write tokens) for the API's `LOGFIRE_TOKEN`, and a **read token** (Settings → Read tokens) for

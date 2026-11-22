@@ -1,0 +1,21 @@
+-- Background jobs (jobs/queue.py) and the last period each periodic task was queued for.
+-- Never edit this file: the runner refuses an applied migration that changed.
+CREATE TABLE jobs (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    task TEXT NOT NULL,
+    payload JSONB NOT NULL DEFAULT '{}',
+    run_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    attempts INT NOT NULL DEFAULT 0,
+    -- Set while a worker runs the job; a job whose lease ran out (its worker died) runs again.
+    locked_until TIMESTAMPTZ,
+    -- Set when the last attempt failed: the job stays for `jobs failed` and `jobs retry`.
+    failed_at TIMESTAMPTZ,
+    last_error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX jobs_due_idx ON jobs (run_at) WHERE failed_at IS NULL;
+
+CREATE TABLE job_schedule (
+    task TEXT PRIMARY KEY,
+    last_slot TIMESTAMPTZ NOT NULL
+);

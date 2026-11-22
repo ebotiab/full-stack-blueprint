@@ -1,10 +1,10 @@
 # 🧭 Choosing your options
 
-The template asks a dozen questions, but **only five are decisions**: the visor, the database,
-sign-in, email and where the API runs. The rest name things (project, package, repository) or pick a
-port, and their defaults are fine. The five decisions are few on purpose: together they cover the
-projects a Python full-stack developer usually builds, and each one can be changed later with
-`copier update` (see [Changing your mind](#-changing-your-mind)).
+The template asks a dozen questions, but **only six are decisions**: the visor, the database,
+sign-in, email, background jobs and where the API runs. The rest name things (project, package,
+repository) or pick a port, and their defaults are fine. The six decisions are few on purpose:
+together they cover the projects a Python full-stack developer usually builds, and each one can be
+changed later with `copier update` (see [Changing your mind](#-changing-your-mind)).
 
 > [!TIP]
 > **In a hurry?** Find your project in the recipes below, copy its flags, and add them to
@@ -19,6 +19,7 @@ projects a Python full-stack developer usually builds, and each one can be chang
 | 🏢 **A SaaS for companies** that need SSO, organizations or MFA | `--data auth=oidc --data email=smtp` | Sign-in through Auth0, Keycloak, Zitadel… (the provider owns the accounts), outgoing email |
 | 🤖 **An API for scripts, services or partners**, no browser UI | `--data with_frontend=false --data auth=sessions` | API only; callers use API keys you create with the CLI |
 | 📊 **A public API or open data** that anyone can read | `--data with_frontend=false` | API + PostgreSQL, no accounts |
+| ⏱️ **An app that imports, syncs or sends digests on a schedule** | `--data jobs=postgres` | Queued and periodic background jobs in PostgreSQL, with retries |
 | 🧮 **A tool that computes but keeps nothing** (calculator, converter, a wrapper around another API) | `--data with_database=false` | Visor + API, no database to run or pay for |
 | 🌍 **A hobby or low-traffic app on a single URL** | `--data api_deploy=vercel` | Visor and API in one Vercel project (serverless) |
 
@@ -46,8 +47,12 @@ flowchart TD
     oidc --> mail
     mail -- "Yes (needs the database)" --> smtp[email: smtp]
     mail -- No --> nomail[email: none]
-    smtp --> where{Where should<br/>the API run?}
-    nomail --> where
+    smtp --> later{Does work happen later<br/>or on a schedule?}
+    nomail --> later
+    later -- "Yes (needs the database)" --> jobs[jobs: postgres]
+    later -- No --> nojobs[jobs: none]
+    jobs --> where{Where should<br/>the API run?}
+    nojobs --> where
     where -- "Default: always on, in the EU" --> render[api_deploy: render]
     where -- "One URL with the visor,<br/>serverless" --> vercel[api_deploy: vercel]
     where -- "Pre-deploy migrations,<br/>infrastructure as code" --> railway[api_deploy: railway]
@@ -115,6 +120,21 @@ Mailpit catches every message and shows it at http://localhost:8025. **Default: 
 
 It needs the database (Mailpit runs in its docker-compose) and a provider account to deploy.
 
+### ⏱️ `jobs`: background jobs
+
+Jobs and periodic tasks kept in PostgreSQL, run by the API process itself, by a dedicated worker,
+or by a scheduled call. No Redis, no queue service. **Default: `none`.**
+
+| ✅ Choose `postgres` when | ❌ Leave `none` when |
+| --- | --- |
+| Work can fail and must be retried: webhooks, emails, calls to other APIs | Everything finishes within the request |
+| Something runs on a schedule: imports, syncs, digests, cleanups | Short best-effort work after the response is enough (FastAPI's `BackgroundTasks`) |
+| A request starts work that takes longer than a page should wait | Jobs last hours: use a dedicated worker or queue service from the start |
+
+On Railway the always-on API runs the jobs. On Render, FastAPI Cloud and Vercel a free GitHub
+Actions schedule calls the API every 10 minutes, so periodic tasks run within about 10 minutes of
+their time (queued jobs still start right after the request). It needs the database.
+
 ### 🚀 `api_deploy`: where the API runs
 
 The visor always goes on Vercel and proxies `/api`, so the browser sees a single domain.
@@ -141,6 +161,7 @@ Pick `ty` only if you want to try it today.
 | --- | --- |
 | `auth=sessions` without a database | Accounts and sessions live in PostgreSQL |
 | `email=smtp` without a database | Mailpit runs in the database's docker-compose |
+| `jobs=postgres` without a database | The jobs live in a PostgreSQL table |
 
 Copier refuses them with a message that says what to change.
 
@@ -152,7 +173,6 @@ template's style.
 
 | Need | A good start |
 | --- | --- |
-| Background jobs and schedules | A table of pending jobs in PostgreSQL and a cron job on your platform, before reaching for a queue |
 | File uploads | Object storage (Vercel Blob, Cloudflare R2, S3) with presigned URLs; keep only the key in PostgreSQL |
 | Payments | Stripe Checkout and a webhook route that verifies the signature |
 | AI features | Pydantic AI; Logfire, already in the project, traces its calls |
@@ -163,7 +183,7 @@ template's style.
 Every decision can be changed in an existing project, with a clean worktree:
 
 ```bash
-copier update --defaults --data auth=sessions --data email=smtp
+copier update --defaults --data auth=sessions --data email=smtp --data jobs=postgres
 make setup && make check
 ```
 

@@ -66,6 +66,20 @@ class Settings(BaseSettings):
     #: The sender, e.g. `My App <no-reply@my-app.com>`, on a domain your provider has verified.
     email_from: str = "no-reply@localhost"
 {%- endif %}
+{%- if jobs == 'postgres' %}
+    #: Run background jobs inside the API process (jobs/queue.py, `run_forever`).
+{%- if api_deploy == 'vercel' %} Off here: Vercel
+    #: functions do not live between requests, so a scheduler calls /api/jobs/tick instead.
+{%- else %} Each instance
+    #: helps; an instance that sleeps runs nothing until a request (or the tick) wakes it.
+{%- endif %}
+    jobs_in_process: bool = {{ 'False' if api_deploy == 'vercel' else 'True' }}
+    #: What a scheduler sends to /api/jobs/tick as `Authorization: Bearer …`; Vercel Cron reads the
+    #: variable CRON_SECRET. Empty: the tick is off.
+    cron_secret: str = Field(
+        default="", validation_alias=AliasChoices(f"{PREFIX}CRON_SECRET", "CRON_SECRET")
+    )
+{%- endif %}
 {%- if auth == 'sessions' %}
     #: The visor's origins, comma-separated (`https://my-app.vercel.app`). Only browsers that do not
     #: send `Sec-Fetch-Site` (from before 2023) need them: see `auth/deps.py`, `check_same_origin`.

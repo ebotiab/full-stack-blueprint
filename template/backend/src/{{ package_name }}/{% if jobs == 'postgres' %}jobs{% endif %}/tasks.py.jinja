@@ -1,0 +1,49 @@
+"""The project's background tasks. Add a task to `TASKS`; if it is periodic, also to `SCHEDULE`.
+
+A task receives a connection and the payload given to `queue.enqueue` (a dict that becomes JSON).
+It may run more than once (delivery is at least once), so write it to be safe to repeat.
+"""
+
+import datetime as dt
+from collections.abc import Awaitable, Callable
+from typing import Any
+
+import asyncpg
+
+{% if auth == 'sessions' -%}
+from ..auth import limits, {% if email == 'smtp' %}resets, {% endif %}sessions
+{% endif -%}
+from .schedule import Daily, {% if auth == 'sessions' %}Every, {% endif %}Periodic
+
+Task = Callable[[asyncpg.Connection, dict[str, Any]], Awaitable[None]]
+
+
+async def prune_failed_jobs(conn: asyncpg.Connection, payload: dict[str, Any]) -> None:
+    """Delete failed jobs after 30 days: until then `jobs failed` lists them and `jobs retry` works."""
+    await conn.execute("DELETE FROM jobs WHERE failed_at < now() - interval '30 days'")
+{%- if auth == 'sessions' %}
+
+
+async def delete_expired_sign_in_data(conn: asyncpg.Connection, payload: dict[str, Any]) -> None:
+    """Remove what has expired: sessions, attempt buckets{% if email == 'smtp' %}, reset codes{% endif %}."""
+    await sessions.delete_expired(conn)
+    await limits.forget_full_buckets(conn)
+{%- if email == 'smtp' %}
+    await resets.delete_expired(conn)
+{%- endif %}
+{%- endif %}
+
+
+TASKS: dict[str, Task] = {
+    "prune_failed_jobs": prune_failed_jobs,
+{%- if auth == 'sessions' %}
+    "delete_expired_sign_in_data": delete_expired_sign_in_data,
+{%- endif %}
+}
+
+SCHEDULE: list[Periodic] = [
+    Daily("prune_failed_jobs", at=dt.time(3, 0)),
+{%- if auth == 'sessions' %}
+    Every("delete_expired_sign_in_data", minutes=60),
+{%- endif %}
+]

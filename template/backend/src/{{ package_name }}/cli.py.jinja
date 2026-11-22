@@ -1,4 +1,4 @@
-"""`{{ project_slug }}` command line: database migrations,{% if auth == 'sessions' %} accounts, API keys,{% endif %}{% if email == 'smtp' %} test email,{% endif %} OpenAPI schema and production status."""
+"""`{{ project_slug }}` command line: database migrations,{% if auth == 'sessions' %} accounts, API keys,{% endif %}{% if email == 'smtp' %} test email,{% endif %}{% if jobs == 'postgres' %} background jobs,{% endif %} OpenAPI schema and production status."""
 
 {% if with_database -%}
 import asyncio
@@ -27,6 +27,10 @@ users_app = typer.Typer(help="Accounts. Passwords come from standard input.", no
 app.add_typer(users_app, name="users")
 keys_app = typer.Typer(help="API keys: `Authorization: Bearer <key>`.", no_args_is_help=True)
 app.add_typer(keys_app, name="api-keys")
+{%- endif %}
+{%- if jobs == 'postgres' %}
+jobs_app = typer.Typer(help="Background jobs: run them, list failed ones.", no_args_is_help=True)
+app.add_typer(jobs_app, name="jobs")
 {%- endif %}
 {%- if with_database %}
 
@@ -69,6 +73,76 @@ def send_test_email(to: Annotated[str, typer.Option(help="Where to send it.")]) 
         typer.echo(f"Could not send: {error}", err=True)
         raise typer.Exit(1) from None
     typer.echo(f"Sent a test email to {to}.")
+{%- endif %}
+{%- if jobs == 'postgres' %}
+
+
+@jobs_app.command("run")
+def jobs_run(
+    seconds: Annotated[float, typer.Option(help="Stop starting new jobs after this long.")] = 50.0,
+) -> None:
+    """Queue the periodic tasks that are due and run due jobs, then exit: for a platform's cron."""
+    from .jobs import queue
+
+    ran = _with_connection(lambda conn: queue.run_due(conn, seconds=seconds))
+    typer.echo(f"Ran {ran} job(s).")
+
+
+@jobs_app.command("work")
+def jobs_work() -> None:
+    """Run jobs until stopped (Ctrl-C): for a dedicated worker service."""
+    from .db.pool import Database
+    from .jobs import queue
+    from .observability import configure_logfire
+    from .settings import get_settings
+
+    settings = get_settings()
+    configure_logfire(settings)
+
+    async def work() -> None:
+        database = Database(settings.database_url)
+        try:
+            await queue.run_forever(database)
+        finally:
+            await database.close()
+
+    try:
+        asyncio.run(work())
+    except KeyboardInterrupt:
+        typer.echo("Stopped.")
+
+
+@jobs_app.command("failed")
+def jobs_failed() -> None:
+    """The jobs that failed for good, newest first, with their last error."""
+    rows = _with_connection(
+        lambda conn: conn.fetch(
+            "SELECT id, task, attempts, failed_at, last_error FROM jobs"
+            " WHERE failed_at IS NOT NULL ORDER BY failed_at DESC LIMIT 50"
+        )
+    )
+    if not rows:
+        typer.echo("No failed jobs.")
+    for row in rows:
+        when = f"{row['failed_at']:%Y-%m-%d %H:%M}"
+        tries = f"{row['attempts']} attempts"
+        typer.echo(f"{row['id']}  {row['task']}  {when}  {tries}: {row['last_error']}")
+
+
+@jobs_app.command("retry")
+def jobs_retry(job_id: Annotated[int, typer.Option("--id", help="The failed job's id.")]) -> None:
+    """Queue a failed job again, with its attempts reset."""
+    retried = _with_connection(
+        lambda conn: conn.fetchval(
+            "UPDATE jobs SET failed_at = NULL, attempts = 0, run_at = now(), locked_until = NULL"
+            " WHERE id = $1 AND failed_at IS NOT NULL RETURNING id",
+            job_id,
+        )
+    )
+    if retried is None:
+        typer.echo(f"No failed job has the id {job_id}.", err=True)
+        raise typer.Exit(1)
+    typer.echo(f"Job {job_id} is queued again.")
 {%- endif %}
 {%- if auth == 'sessions' %}
 

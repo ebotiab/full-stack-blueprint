@@ -20,11 +20,14 @@ answers and is only changed by `copier update` (see "Template updates").
   - `src/{{ package_name }}/auth/`: sign-in through an OIDC provider. Token verification against its keys (`verify.py`), the `CurrentUser` dependency (`deps.py`){% if with_database %}, the `users` table (`0002_oidc_users.sql`, `users.py`){% endif %} and `/api/auth/me`. The package docstring lists its invariants.
 {%- endif %}
   - `src/{{ package_name }}/settings.py`: configuration from environment variables prefixed `{{ env_prefix }}`; defaults work locally.
+{%- if jobs == 'postgres' %}
+  - `src/{{ package_name }}/jobs/`: background jobs in PostgreSQL (`0004_jobs.sql`). Your tasks and the periodic schedule in `tasks.py`; the queue (`enqueue`, `run_soon`, `run_due`) in `queue.py`; `/api/jobs/tick` in `routes.py`.
+{%- endif %}
 {%- if email == 'smtp' %}
   - `src/{{ package_name }}/mail.py`: outgoing email through SMTP (Mailpit locally); routes send in a background task with `deliver`.
 {%- endif %}
   - `src/{{ package_name }}/observability.py`: Logfire set-up and the deployed commit. `obs.py`: production status from traces.
-  - `src/{{ package_name }}/cli.py`: the `{{ project_slug }}` command ({% if with_database %}`migrate`, {% endif %}{% if auth == 'sessions' %}`users`, `api-keys`, {% endif %}{% if email == 'smtp' %}`send-test-email`, {% endif %}`openapi`, `obs status`).
+  - `src/{{ package_name }}/cli.py`: the `{{ project_slug }}` command ({% if with_database %}`migrate`, {% endif %}{% if auth == 'sessions' %}`users`, `api-keys`, {% endif %}{% if email == 'smtp' %}`send-test-email`, {% endif %}{% if jobs == 'postgres' %}`jobs run|work|failed|retry`, {% endif %}`openapi`, `obs status`).
   - `openapi.json`: the API contract, generated (`make types`). Committed.
   - `tests/`: pytest{% if with_database %}; the integration tests use a real PostgreSQL database{% endif %}.
 {%- if with_frontend %}
@@ -156,6 +159,15 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   `background.add_task(deliver, mailer, msg)` (a `MailerDep` parameter): never await the SMTP server
   in the request. Locally everything goes to Mailpit; tests override `get_mailer` and read what
   would have been sent. Never log a message's body or recipient: it may hold a code.
+{%- endif %}
+{%- if jobs == 'postgres' %}
+- **Background jobs.** Work that may fail or take long leaves the request: add an async task
+  `(conn, payload)` to `TASKS` in `jobs/tasks.py`, queue it with `await queue.enqueue(conn, "name",
+  {...})` inside the route's transaction, and call `queue.run_soon(background, request)` (a
+  `BackgroundTasks` parameter) so it starts after the response. Periodic tasks go in `SCHEDULE`
+  (`Every(minutes=…)`, `Daily(at=…)`, UTC). Delivery is at least once: tasks must be safe to
+  repeat and short (a lease of 5 minutes); failures retry 5 times, then `jobs failed` lists them.
+  {% if api_deploy == 'railway' %}The API process runs the jobs (`JOBS_IN_PROCESS`).{% else %}The API process runs them while awake; `.github/workflows/jobs-tick.yml` calls `/api/jobs/tick` every 10 minutes.{% endif %}
 {%- endif %}
 - **Configuration.** New settings go in `settings.py` with a local default and the `{{ env_prefix }}` prefix,
   and in `backend/.env.example`. Secrets never enter the repository; everything runs locally without credentials.

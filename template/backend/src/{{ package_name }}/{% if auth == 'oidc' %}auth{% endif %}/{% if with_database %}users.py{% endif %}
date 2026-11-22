@@ -1,0 +1,32 @@
+"""Users seen in valid tokens: one row per issuer and subject. The provider owns the accounts.
+
+The key is `(iss, sub)`, never the email: providers differ in whether and how they send it, and
+an email can change hands.
+"""
+
+from typing import cast
+
+import asyncpg
+
+
+async def upsert(conn: asyncpg.Connection, issuer: str, subject: str, email: str | None) -> int:
+    """This API's id for the user, creating the row on first sight and following email changes."""
+    row = await conn.fetchrow(
+        "SELECT id, email FROM users WHERE issuer = $1 AND subject = $2", issuer, subject
+    )
+    if row is None:
+        # INSERT … RETURNING always returns the row; asyncpg types fetchval as optional.
+        user_id = await conn.fetchval(
+            """
+            INSERT INTO users (issuer, subject, email) VALUES ($1, $2, $3)
+            ON CONFLICT (issuer, subject) DO UPDATE SET email = EXCLUDED.email
+            RETURNING id
+            """,
+            issuer,
+            subject,
+            email,
+        )
+        return cast(int, user_id)
+    if email is not None and row["email"] != email:
+        await conn.execute("UPDATE users SET email = $2 WHERE id = $1", row["id"], email)
+    return row["id"]

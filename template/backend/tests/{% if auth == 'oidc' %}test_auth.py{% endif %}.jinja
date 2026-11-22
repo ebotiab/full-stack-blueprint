@@ -1,0 +1,224 @@
+"""Token verification, offline: a test key signs the tokens and a fake provider serves its keys."""
+
+import time
+from collections.abc import AsyncIterator
+from typing import Any
+
+{% if with_database -%}
+import asyncpg
+{% endif -%}
+import httpx
+import jwt
+import pytest
+{%- if with_database %}
+from asgi_lifespan import LifespanManager
+{%- endif %}
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from jwt.algorithms import OKPAlgorithm
+
+from {{ package_name }}.api.main import create_app
+from {{ package_name }}.auth.deps import get_verifier
+from {{ package_name }}.auth.verify import (
+    InvalidToken,
+    ProviderUnavailable,
+    Verifier,
+)
+
+ISSUER = "https://id.example.test/"
+AUDIENCE = "https://api.example.test"
+ALGORITHMS = ["RS256", "ES256", "EdDSA"]
+KEY = Ed25519PrivateKey.generate()
+
+
+class Provider:
+    """The provider's discovery document and keys (JWKS), counting the key requests."""
+
+    def __init__(self) -> None:
+        self.keys = {"k1": KEY}
+        self.key_requests = 0
+        self.down = False
+
+    def handle(self, request: httpx.Request) -> httpx.Response:
+        if self.down:
+            raise httpx.ConnectError("provider down", request=request)
+        if request.url.path == "/.well-known/openid-configuration":
+            return httpx.Response(200, json={"issuer": ISSUER, "jwks_uri": f"{ISSUER}jwks"})
+        self.key_requests += 1
+        keys = [
+            OKPAlgorithm.to_jwk(key.public_key(), as_dict=True)
+            | {"kid": kid, "alg": "EdDSA", "use": "sig"}
+            for kid, key in self.keys.items()
+        ]
+        return httpx.Response(200, json={"keys": keys})
+
+
+def token(key: Ed25519PrivateKey = KEY, kid: str = "k1", **claims: Any) -> str:
+    """A token from the provider; a claim given as None is left out."""
+    payload = {
+        "iss": ISSUER,
+        "aud": AUDIENCE,
+        "sub": "user-1",
+        "email": "ada@example.com",
+        "exp": int(time.time()) + 300,
+    } | claims
+    payload = {name: value for name, value in payload.items() if value is not None}
+    return jwt.encode(payload, key, algorithm="EdDSA", headers={"kid": kid})
+
+
+@pytest.fixture
+def provider() -> Provider:
+    return Provider()
+
+
+@pytest.fixture
+def clock() -> list[float]:
+    """A clock the test moves by hand: `clock[0] += 61`."""
+    return [1000.0]
+
+
+@pytest.fixture
+def verifier(provider: Provider, clock: list[float]) -> Verifier:
+    return Verifier(
+        ISSUER,
+        algorithms=ALGORITHMS,
+        audience=AUDIENCE,
+        transport=httpx.MockTransport(provider.handle),
+        clock=lambda: clock[0],
+    )
+
+
+async def test_a_valid_token_gives_its_claims(verifier: Verifier, provider: Provider) -> None:
+    claims = await verifier.claims(token())
+    assert claims["sub"] == "user-1"
+    assert provider.key_requests == 1
+
+
+REFUSED = {
+    "expired": {"exp": int(time.time()) - 120},
+    "another issuer": {"iss": "https://attacker.example/"},
+    "another audience": {"aud": "https://other-api.example"},
+    "no expiry": {"exp": None},
+    "no subject": {"sub": None},
+}
+
+
+@pytest.mark.parametrize("claims", list(REFUSED.values()), ids=list(REFUSED))
+async def test_a_token_with_wrong_claims_is_refused(
+    verifier: Verifier, claims: dict[str, Any]
+) -> None:
+    with pytest.raises(InvalidToken):
+        await verifier.claims(token(**claims))
+
+
+async def test_hs256_signed_with_the_public_key_is_refused(verifier: Verifier) -> None:
+    public = OKPAlgorithm.to_jwk(KEY.public_key(), as_dict=True)["x"].encode()
+    payload = {"iss": ISSUER, "aud": AUDIENCE, "sub": "user-1", "exp": int(time.time()) + 300}
+    forged = jwt.encode(payload, public, algorithm="HS256", headers={"kid": "k1"})
+    with pytest.raises(InvalidToken):
+        await verifier.claims(forged)
+
+
+async def test_a_token_signed_by_another_key_is_refused(verifier: Verifier) -> None:
+    with pytest.raises(InvalidToken):
+        await verifier.claims(token(key=Ed25519PrivateKey.generate()))
+
+
+async def test_rotated_keys_are_fetched_again_at_most_once_a_minute(
+    verifier: Verifier, provider: Provider, clock: list[float]
+) -> None:
+    await verifier.claims(token())
+    new_key = Ed25519PrivateKey.generate()
+    provider.keys = {"k2": new_key}
+    with pytest.raises(InvalidToken):
+        await verifier.claims(token(key=new_key, kid="k2"))
+    assert provider.key_requests == 1
+    clock[0] += 61
+    await verifier.claims(token(key=new_key, kid="k2"))
+    await verifier.claims(token(key=new_key, kid="k2"))
+    assert provider.key_requests == 2
+
+
+async def test_the_authorized_party_is_checked_when_configured(provider: Provider) -> None:
+    verifier = Verifier(
+        ISSUER,
+        algorithms=ALGORITHMS,
+        authorized_parties=["visor"],
+        transport=httpx.MockTransport(provider.handle),
+    )
+    assert (await verifier.claims(token(aud=None, azp="visor")))["sub"] == "user-1"
+    with pytest.raises(InvalidToken):
+        await verifier.claims(token(aud=None, azp="another-client"))
+
+
+async def test_an_unreachable_provider_is_not_an_invalid_token(
+    verifier: Verifier, provider: Provider
+) -> None:
+    provider.down = True
+    with pytest.raises(ProviderUnavailable):
+        await verifier.claims(token())
+
+
+@pytest.fixture
+async def http(verifier: Verifier{% if with_database %}, app_settings: None{% endif %}) -> AsyncIterator[httpx.AsyncClient]:
+    app = create_app()
+    app.dependency_overrides[get_verifier] = lambda: verifier
+    transport = httpx.ASGITransport(app=app)
+{%- if with_database %}
+    async with (
+        LifespanManager(app),
+        httpx.AsyncClient(transport=transport, base_url="https://test") as client,
+    ):
+        yield client
+{%- else %}
+    async with httpx.AsyncClient(transport=transport, base_url="https://test") as client:
+        yield client
+{%- endif %}
+
+
+def bearer(value: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {value}"}
+
+
+async def test_me_returns_the_caller_of_a_valid_token(http: httpx.AsyncClient) -> None:
+    response = await http.get("/api/auth/me", headers=bearer(token()))
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["subject"], body["email"]) == ("user-1", "ada@example.com")
+    assert response.headers["cache-control"] == "no-store"
+
+
+async def test_me_needs_a_valid_token(http: httpx.AsyncClient) -> None:
+    missing = await http.get("/api/auth/me")
+    assert missing.status_code == 401
+    assert missing.headers["www-authenticate"] == "Bearer"
+    expired = await http.get("/api/auth/me", headers=bearer(token(exp=int(time.time()) - 120)))
+    assert expired.status_code == 401
+    assert expired.headers["www-authenticate"] == 'Bearer error="invalid_token"'
+
+
+async def test_without_an_issuer_sign_in_is_not_configured(
+    http: httpx.AsyncClient, verifier: Verifier
+) -> None:
+    verifier.issuer = ""
+    response = await http.get("/api/auth/me", headers=bearer(token()))
+    assert response.status_code == 503
+    assert "AUTH_ISSUER" in response.json()["detail"]
+{%- if with_database %}
+
+
+async def test_a_user_row_is_kept_per_issuer_and_subject(
+    http: httpx.AsyncClient, db_conn: asyncpg.Connection
+) -> None:
+    first = (await http.get("/api/auth/me", headers=bearer(token()))).json()
+    renamed = token(email="ada@new.example")
+    second = (await http.get("/api/auth/me", headers=bearer(renamed))).json()
+    assert first["id"] == second["id"]
+    rows = await db_conn.fetch("SELECT issuer, subject, email FROM users")
+    assert [tuple(row) for row in rows] == [(ISSUER, "user-1", "ada@new.example")]
+{%- endif %}
+
+
+def test_openapi_describes_the_bearer_scheme() -> None:
+    schema = create_app().openapi()
+    assert "/api/auth/me" in schema["paths"]
+    assert schema["components"]["securitySchemes"]["oidc"]["scheme"] == "bearer"

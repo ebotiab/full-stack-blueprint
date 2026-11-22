@@ -1,0 +1,93 @@
+"""Who is calling: FastAPI dependencies that protect routes.
+
+    @router.get("/things")
+    async def list_things(user: CurrentUser) -> list[Thing]: ...
+
+`CurrentUser` verifies the provider's token in `Authorization: Bearer`: 401 without a valid one,
+503 while sign-in is not configured (`AUTH_ISSUER`) or the provider's keys cannot be fetched.
+"""
+
+from functools import lru_cache
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, Security, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
+
+{% if with_database -%}
+from ..api.deps import ConnectionDep
+{% endif -%}
+from ..settings import PREFIX, get_settings
+{%- if with_database %}
+from . import users
+{%- endif %}
+from .verify import InvalidToken, ProviderUnavailable, Verifier
+
+
+class User(BaseModel):
+    """The caller, as routes receive it (`CurrentUser`) and `/api/auth/me` returns it."""
+{% if with_database %}
+    #: This API's own id for the user (table `users`, one row per issuer and subject).
+    id: int
+{%- endif %}
+    #: The provider's id for the user (`sub`).
+    subject: str
+    email: str | None
+
+
+bearer = HTTPBearer(scheme_name="oidc", bearerFormat="JWT", auto_error=False)
+
+
+@lru_cache
+def get_verifier() -> Verifier:
+    """One verifier per process, so the provider's keys are fetched once and then cached."""
+    settings = get_settings()
+    return Verifier(
+        settings.auth_issuer,
+        algorithms=settings.auth_algorithms,
+        jwks_url=settings.auth_jwks_url or None,
+        audience=settings.auth_audience or None,
+        authorized_parties=settings.auth_authorized_parties,
+    )
+
+
+def unauthorized(detail: str, error: str | None = None) -> HTTPException:
+    challenge = f'Bearer error="{error}"' if error else "Bearer"
+    return HTTPException(
+        status.HTTP_401_UNAUTHORIZED, detail, headers={"WWW-Authenticate": challenge}
+    )
+
+
+async def current_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer)],
+    verifier: Annotated[Verifier, Depends(get_verifier)],
+{%- if with_database %}
+    conn: ConnectionDep,
+{%- endif %}
+) -> User:
+    if not verifier.issuer:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            f"Sign-in is not configured: set {PREFIX}AUTH_ISSUER.",
+        )
+    if credentials is None:
+        raise unauthorized("Not signed in.")
+    try:
+        claims = await verifier.claims(credentials.credentials)
+    except InvalidToken as error:
+        raise unauthorized(str(error), "invalid_token") from None
+    except ProviderUnavailable:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "The sign-in provider is not reachable."
+        ) from None
+    email = claims.get(get_settings().auth_email_claim)
+    email = email if isinstance(email, str) else None
+{%- if with_database %}
+    user_id = await users.upsert(conn, claims["iss"], claims["sub"], email)
+    return User(id=user_id, subject=claims["sub"], email=email)
+{%- else %}
+    return User(subject=claims["sub"], email=email)
+{%- endif %}
+
+
+CurrentUser = Annotated[User, Depends(current_user)]

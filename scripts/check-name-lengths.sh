@@ -10,7 +10,8 @@
 # characters only when it fits once wrapped, so a name can break the generated project for a band
 # of lengths that the CI's combinations, with one name each, step over. Two combinations cover the
 # Python files that depend on the options: Vercel with a database and sign-in (main.py, db/,
-# auth/) and Render without a database. It takes a minute or two; no Docker, no npm.
+# auth/) and Render without a database, with OIDC sign-in. It takes a minute or two; no Docker,
+# no npm.
 set -euo pipefail
 
 if [ $# -ne 1 ]; then
@@ -41,7 +42,7 @@ render() {
   local options
   case $1 in
     vercel-db) options=(--data api_deploy=vercel --data auth=sessions) ;;
-    render-nodb) options=(--data with_database=false) ;;
+    render-nodb) options=(--data with_database=false --data auth=oidc) ;;
   esac
   # PYTHONWARNINGS: one "dirty template" warning per project would bury the output.
   PYTHONWARNINGS=ignore copier copy --quiet --defaults --vcs-ref HEAD --data with_frontend=false \

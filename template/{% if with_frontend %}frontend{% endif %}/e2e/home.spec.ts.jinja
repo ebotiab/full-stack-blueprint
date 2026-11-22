@@ -7,6 +7,16 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({ json: { id: 1, email: 'ada@example.com', is_admin: false } }),
   )
 })
+{%- elif auth == 'oidc' %}
+
+// Signed in: a user from the provider in sessionStorage. e2e/sign-in.spec.ts tests signing in.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const user = { access_token: 'test-token', token_type: 'Bearer', profile: { sub: 'user-1' } }
+    const key = 'oidc.user:https://id.example.test:visor'
+    sessionStorage.setItem(key, JSON.stringify({ ...user, expires_at: 4102444800 }))
+  })
+})
 {%- endif %}
 
 // The test answers /api itself: it checks the visor, not the API (that is pytest's job).

@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 
 import { App } from './App'
 import './index.css'
-{%- if auth == 'sessions' %}
+{%- if auth != 'none' %}
 import { RequireSignIn } from './RequireSignIn'
 {%- endif %}
 import { startTelemetry } from './telemetry'
@@ -16,8 +16,8 @@ if (!root) throw new Error('Missing #root element')
 
 createRoot(root).render(
   <StrictMode>
-{%- if auth == 'sessions' %}
-    {/* The form until someone is signed in, then the app (src/RequireSignIn.tsx). */}
+{%- if auth != 'none' %}
+    {/* Sign-in until someone is signed in, then the app (src/RequireSignIn.tsx). */}
     <RequireSignIn>
       <App />
     </RequireSignIn>

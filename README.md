@@ -362,7 +362,12 @@ Kinde, Pocket ID, Supabase and Neon Auth (and Clerk, through `azp`):
   `AUTH_ALGORITHMS`, `AUTH_AUTHORIZED_PARTIES` and `AUTH_EMAIL_CLAIM`.
 - **Users**: with a database, one row per `(issuer, subject)`, created on first sight; without
   one, `CurrentUser` comes from the claims alone. It works with or without the database.
-- **Tests** run offline: a test key signs the tokens and a fake provider serves its keys.
+- **Visor**: sign-in at the provider with the code flow and PKCE (`oidc-client-ts`,
+  `react-oidc-context`) and an `openapi-fetch` middleware that sends the access token; the example
+  `/api/messages` requires it. The tokens live in `sessionStorage`, readable by any script on the
+  page, which is why `sessions` is the first choice for apps with personal data.
+- **Tests** run offline: a test key signs the tokens and a fake provider serves its keys; Playwright
+  answers the provider's requests itself.
 
 </details>
 

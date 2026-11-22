@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from .. import __version__
-{%- if auth == 'sessions' %}
+{%- if auth != 'none' %}
 from ..auth.deps import CurrentUser
 {%- endif %}
 from ..observability import deployed_commit
@@ -37,7 +37,7 @@ async def healthz() -> Health:
 
 @router.get("/messages", tags=["messages"])
 {%- if with_database %}
-{%- if auth == 'sessions' %}
+{%- if auth != 'none' %}
 async def list_messages(conn: ConnectionDep, user: CurrentUser) -> list[Message]:
     """Messages from the database, newest first. Only for signed-in users."""
 {%- else %}
@@ -46,6 +46,11 @@ async def list_messages(conn: ConnectionDep) -> list[Message]:
 {%- endif %}
     rows = await conn.fetch("SELECT id, text, created_at FROM messages ORDER BY id DESC LIMIT 50")
     return [Message(**dict(row)) for row in rows]
+{%- elif auth != 'none' %}
+async def list_messages(user: CurrentUser) -> list[Message]:
+    """A fixed message (this project has no database), only for signed-in users."""
+    created = dt.datetime(2026, 1, 1, tzinfo=dt.UTC)
+    return [Message(id=1, text="Hello from FastAPI", created_at=created)]
 {%- else %}
 async def list_messages() -> list[Message]:
     """A fixed message: this project has no database."""

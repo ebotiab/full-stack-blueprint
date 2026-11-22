@@ -29,6 +29,8 @@ answers and is only changed by `copier update` (see "Template updates").
   - `src/api/client.ts`: the typed API client (`openapi-fetch`). `src/api/schema.d.ts` is generated from `backend/openapi.json`: never edit it.
 {%- if auth == 'sessions' %}
   - `src/RequireSignIn.tsx`: the sign-in form, shown until `/api/auth/me` answers with a user; then `App`. The session cookie is HttpOnly: the visor never sees a token and never stores one.
+{%- elif auth == 'oidc' %}
+  - `src/RequireSignIn.tsx`: sign-in at the OIDC provider (code flow with PKCE, `oidc-client-ts`), then `App`; an `openapi-fetch` middleware adds the access token to every `/api` request. Settings `VITE_OIDC_*` (`frontend/.env.example`).
 {%- endif %}
   - `src/**/*.test.ts`: unit tests (Vitest). `e2e/`: browser tests (Playwright); they answer `/api` themselves with `page.route`.
 {%- endif %}

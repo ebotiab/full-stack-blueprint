@@ -12,6 +12,8 @@ from {{ package_name }}.api.main import create_app
 {%- if auth == 'sessions' %}
 from {{ package_name }}.auth.deps import current_user
 from {{ package_name }}.auth.users import User
+{%- elif auth == 'oidc' %}
+from {{ package_name }}.auth.deps import User, current_user
 {%- endif %}
 from {{ package_name }}.db.migrate import (
     MigrationError,
@@ -53,6 +55,9 @@ async def test_messages_come_from_the_database() -> None:
 {%- if auth == 'sessions' %}
     # A stand-in for the signed-in user: tests/test_auth.py covers signing in.
     app.dependency_overrides[current_user] = lambda: User(id=1, email="a@b.example", is_admin=False)
+{%- elif auth == 'oidc' %}
+    # A stand-in for the signed-in user: tests/test_auth.py covers token verification.
+    app.dependency_overrides[current_user] = lambda: User(id=1, subject="user-1", email=None)
 {%- endif %}
     async with (
         LifespanManager(app),

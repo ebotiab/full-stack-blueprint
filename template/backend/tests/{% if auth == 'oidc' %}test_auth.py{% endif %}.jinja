@@ -218,6 +218,11 @@ async def test_a_user_row_is_kept_per_issuer_and_subject(
 {%- endif %}
 
 
+async def test_messages_need_a_valid_token(http: httpx.AsyncClient) -> None:
+    assert (await http.get("/api/messages")).status_code == 401
+    assert (await http.get("/api/messages", headers=bearer(token()))).status_code == 200
+
+
 def test_openapi_describes_the_bearer_scheme() -> None:
     schema = create_app().openapi()
     assert "/api/auth/me" in schema["paths"]

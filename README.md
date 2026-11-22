@@ -335,8 +335,10 @@ app and the API share an origin, as they do here on every target:
   `Sec-Fetch-Site: same-origin` (or a listed `Origin` in browsers from before 2023).
 - **API keys** for scripts and projects without a visor: `Authorization: Bearer <key>`, created,
   listed and revoked with the CLI, which also creates the accounts (there is no sign-up route).
-- **Routes** take `user: CurrentUser` or `AdminUser`; `tests/test_auth.py` checks every rule above
-  against the real PostgreSQL.
+- **Routes** take `user: CurrentUser` or `AdminUser` (the example `/api/messages` does);
+  `tests/test_auth.py` checks every rule above against the real PostgreSQL.
+- **Visor**: a sign-in form until `/api/auth/me` answers with a user, and a sign-out button; the
+  visor never handles a token. Playwright tests cover the form.
 
 `none` stays the default: a project without accounts carries no security code, and
 `copier update --defaults --data auth=sessions` adds it later.

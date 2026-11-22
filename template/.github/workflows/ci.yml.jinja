@@ -94,6 +94,41 @@ jobs:
         run: uv sync --locked
       - name: make check-backend
         run: make check-backend
+{%- if type_checker == 'pyright' %}
+
+  # ty (Astral) replaces pyright as the template's type checker at its 1.0 (copier.yml,
+  # type_checker). Until then it runs here for information only: this job always passes, is not a
+  # required check, and writes what ty finds to its summary, so the switch holds no surprises.
+  ty-preview:
+    name: ty preview (informational)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: ty check (never fails the job)
+        working-directory: backend
+        run: |
+          if uv run --locked --with ty ty check --output-format concise > "$RUNNER_TEMP/ty.txt" 2>&1; then
+            echo "ty: no diagnostics." >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### ty found diagnostics (informational)"
+              echo '```'
+              head -n 200 "$RUNNER_TEMP/ty.txt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::ty found diagnostics (informational, not required): see the job summary."
+          fi
+{%- endif %}
 {%- if with_frontend %}
 
   frontend-checks:

@@ -38,7 +38,7 @@ answers and is only changed by `copier update` (see "Template updates").
 {%- if with_database %}
 - `docker-compose.yml`: the local PostgreSQL 18 on port {{ postgres_port }}.
 {%- endif %}
-- `.github/workflows/ci.yml`: the CI; `.github/scripts/what-changed.sh` decides which half a pull request can affect. `make check` audits the workflows with zizmor: keep `persist-credentials: false` on checkouts and pinned actions. `.github/dependabot.yml`: weekly grouped dependency updates.
+- `.github/workflows/ci.yml`: the CI; `.github/scripts/what-changed.sh` decides which half a pull request can affect. `make check` audits the workflows with zizmor: keep `persist-credentials: false` on checkouts and pinned actions.{% if type_checker == 'pyright' %} Its `ty preview` job is informational: it never fails.{% endif %} `.github/dependabot.yml`: weekly grouped dependency updates.
 {%- if api_deploy == 'render' %}
 - `render.yaml`: the Render Blueprint of the API. `backend/Dockerfile`: its image.
 {%- elif api_deploy == 'railway' %}

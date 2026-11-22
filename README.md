@@ -398,7 +398,9 @@ format is deprecated and stops being read on 2026-12-01.
 Two defaults, each a one-line edit in `copier.yml` (the comment above the question says which line):
 
 - **`type_checker: ty`** once ty publishes a stable 1.0 release. Until then it is a 0.0.x beta:
-  faster than pyright, but its diagnostics still change between releases.
+  faster than pyright, but its diagnostics still change between releases. Projects on pyright
+  meanwhile run ty in an informational CI job ("ty preview") that never fails and lists what ty
+  finds in its summary.
 - **`api_deploy: fastapi_cloud`** once FastAPI Cloud offers all of: an EU region, a Dockerfile or a
   command that runs before start-up (for migrations), rollbacks that are no longer "coming soon",
   and active usage-based billing. Until then Render is the default: Docker, Frankfurt, a free plan.

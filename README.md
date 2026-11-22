@@ -174,7 +174,13 @@ Every question has a default ([see them all](#options-and-defaults)). These are 
 | `project_name` | `Bus Stops` | The readable name. The short names come from it: `bus-stops` for the repository and commands, `bus_stops` for the Python package. |
 | `github_repo` | `your-user/bus-stops` | The repository you create in step 4. It does not need to exist yet. |
 | `with_frontend`, `with_database` | `true` | Keep both unless you want an API without a visor or without PostgreSQL. |
+| `auth`, `email` | `none` | Sign-in (`sessions`: your own accounts; `oidc`: an identity provider) and outgoing email (`smtp`). |
 | `api_deploy` | `render` | Where the API runs in production. |
+
+> [!TIP]
+> **Not sure which answers fit your project?** [🧭 Choosing your options](docs/choosing-your-options.md)
+> has recipes by kind of project (internal tool, SaaS, API for scripts…), a decision tree and,
+> for each option, when it pays off and when to skip it.
 
 You can change any answer later: see [Update a project](#update-a-project).
 
@@ -301,6 +307,8 @@ when the CI passes. After that, merging into `main` deploys.
 | `make check` fails | The summary names the step. `make fmt` fixes formatting and `make types` stale API types; for anything else, the output above the summary says what broke. If you work with an agent, give it the summary. |
 
 ## Options and defaults
+
+Which answers suit which project: [🧭 Choosing your options](docs/choosing-your-options.md).
 
 | Question | Default | Values |
 | --- | --- | --- |

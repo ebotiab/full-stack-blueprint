@@ -49,6 +49,7 @@ dev = [
 {%- endif %}
     "pytest>=9.2.0",
     "pytest-asyncio>=1.5.0",
+    "pytest-cov>=7.1.0",
     "ruff>=0.17.5",
     # Security audit of the GitHub Actions workflows (make check).
     "zizmor>=1.32.0",
@@ -71,6 +72,14 @@ testpaths = ["tests"]
 # Logfire's pytest plugin only activates with CI=true and a LOGFIRE_TOKEN; tests never send data.
 addopts = ["--no-logfire"]
 filterwarnings = ["error::DeprecationWarning:{{ package_name }}.*"]
+
+# `make coverage`: branch coverage of the package, files with nothing left uncovered omitted.
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+skip_empty = true
 
 [tool.ruff]
 line-length = 100

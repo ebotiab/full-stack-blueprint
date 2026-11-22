@@ -50,8 +50,10 @@ printf '%s\n' "$PASSWORD" | uv run {{ project_slug }} users create --email you@e
 uv run {{ project_slug }} api-keys create --email you@example.com --name my-script   # printed once
 ```
 
-A browser signs in with `POST /api/auth/login` and then holds an HttpOnly session cookie (7 days
-without use or 30 in total end it). Scripts send an API key as `Authorization: Bearer <key>`.
+{% if with_frontend %}The visor shows a sign-in form until someone is signed in, and `/api/messages`, the example
+route, answers only signed-in users. {% endif %}A browser signs in with `POST /api/auth/login` and then holds an
+HttpOnly session cookie (7 days without use or 30 in total end it). Scripts send an API key as
+`Authorization: Bearer <key>`.
 `users set-password`, `users deactivate`, `api-keys list` and `api-keys revoke` do the rest; `--help`
 explains each one. Ten wrong passwords in a row pause an account's sign-in for a minute per attempt.
 {%- endif %}

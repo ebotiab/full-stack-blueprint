@@ -6,7 +6,8 @@
 name: Deploy API
 
 on:
-  workflow_run:
+  # zizmor flags every workflow_run trigger; the job's `if` below is what makes this one safe.
+  workflow_run: # zizmor: ignore[dangerous-triggers]
     workflows: [CI]
     types: [completed]
     branches: [main]
@@ -22,7 +23,12 @@ concurrency:
 jobs:
   deploy:
     name: FastAPI Cloud
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Only after a CI run of a push to main in this repository. The `branches` filter above alone
+    # would also let through a pull request from a fork whose branch is called main, and this job
+    # would deploy the fork's commit with the secrets.
+    if: >-
+      github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -42,6 +48,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.secrets.outputs.ready == 'true'
         with:
+          persist-credentials: false
           ref: ${{ '{{' }} env.COMMIT {{ '}}' }}
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         if: steps.secrets.outputs.ready == 'true'

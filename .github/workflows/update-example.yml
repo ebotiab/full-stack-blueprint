@@ -54,7 +54,7 @@ jobs:
         with:
           persist-credentials: false
       # The token stays in this checkout's git configuration: the last step pushes with it.
-      - name: Check out the example project
+      - name: Check out the example project # zizmor: ignore[artipacked]
         if: steps.token.outputs.present == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

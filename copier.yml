@@ -123,6 +123,20 @@ postgres_port:
   when: "{{ with_database }}"
   validator: "{% if postgres_port < 1024 or postgres_port > 65535 %}Use a port between 1024 and 65535.{% endif %}"
 
+# Sign-in. `none` stays the default: a project without accounts carries no security code, and
+# turning it on later is an update like any other (`copier update --defaults --data auth=sessions`).
+# `sessions` keeps accounts, sessions and API keys in the project's PostgreSQL (backend/src/<package>/auth/).
+auth:
+  type: str
+  help: Sign-in for the API.
+  default: none
+  choices:
+    "None": none
+    "Own accounts: email and password, sessions in PostgreSQL, API keys (needs the database)": sessions
+  validator: >-
+    {% if auth == 'sessions' and not with_database %}auth=sessions keeps accounts and sessions in
+    PostgreSQL: it needs with_database=true.{% endif %}
+
 # Python type checker. pyright is the default because it is stable and matches Pylance (VS Code).
 # ty (Astral) is faster and is the planned default once it reaches a stable 1.0 release: when that
 # happens, change `default: pyright` to `default: ty` below (one line) and update the README

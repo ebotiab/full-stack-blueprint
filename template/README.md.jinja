@@ -37,6 +37,24 @@ Optional local settings: `backend/.env.example`{% if with_frontend %} and `front
 | `make migrate` | Applies new migrations (`backend/src/{{ package_name }}/db/migrations/`). |
 {%- endif %}
 | `make help` | Lists every target. |
+{%- if auth == 'sessions' %}
+
+## Accounts
+
+Accounts live in the project's PostgreSQL. There is no sign-up page: create them with the CLI,
+which reads the password from standard input so that it stays out of the shell's history:
+
+```bash
+cd backend
+printf '%s\n' "$PASSWORD" | uv run {{ project_slug }} users create --email you@example.com --admin
+uv run {{ project_slug }} api-keys create --email you@example.com --name my-script   # printed once
+```
+
+A browser signs in with `POST /api/auth/login` and then holds an HttpOnly session cookie (7 days
+without use or 30 in total end it). Scripts send an API key as `Authorization: Bearer <key>`.
+`users set-password`, `users deactivate`, `api-keys list` and `api-keys revoke` do the rest; `--help`
+explains each one. Ten wrong passwords in a row pause an account's sign-in for a minute per attempt.
+{%- endif %}
 
 ## Deploy
 
@@ -95,6 +113,12 @@ different, change it there. Web Analytics: turn it on in the project (no cookies
 
 **GitHub.** Protect `main`: require pull requests and the checks `Backend` and `Frontend`, and
 allow auto-merge (Settings → General → "Allow auto-merge").
+
+{%- if auth == 'sessions' %}
+
+**First administrator.** Once the API is deployed, create it against the production database:
+`printf '%s\n' "$PASSWORD" | DATABASE_URL="<Neon direct URL>" uv run {{ project_slug }} users create --email … --admin` from `backend/`.
+{%- endif %}
 
 **After a deploy.** `cd backend && uv run {{ project_slug }} obs status --commit <sha> --wait 15` says when the commit is live
 and lists any error since.

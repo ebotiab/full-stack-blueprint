@@ -1,9 +1,12 @@
 """Settings read from the environment (and from backend/.env). Everything works locally without credentials."""
 
 from functools import lru_cache
+{%- if auth == 'sessions' %}
+from typing import Annotated
+{%- endif %}
 
-from pydantic import AliasChoices, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AliasChoices, Field{% if auth == 'sessions' %}, field_validator{% endif %}
+from pydantic_settings import BaseSettings, {% if auth == 'sessions' %}NoDecode, {% endif %}SettingsConfigDict
 
 #: Prefix of this project's environment variables.
 PREFIX = "{{ env_prefix }}"
@@ -43,6 +46,18 @@ class Settings(BaseSettings):
     #: Apply pending migrations when the API starts. On by default where the platform has no
     #: pre-deploy step ({% if api_deploy in ['render', 'fastapi_cloud'] %}this target{% else %}not this target: {{ 'Railway runs them as preDeploy' if api_deploy == 'railway' else 'the deploy workflow runs them before Vercel deploys' }}{% endif %}).
     migrate_on_start: bool = {{ 'True' if api_deploy in ['render', 'fastapi_cloud'] else 'False' }}
+{%- endif %}
+{%- if auth == 'sessions' %}
+    #: The visor's origins, comma-separated (`https://my-app.vercel.app`). Only browsers that do not
+    #: send `Sec-Fetch-Site` (from before 2023) need them: see `auth/deps.py`, `check_same_origin`.
+    auth_public_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    @field_validator("auth_public_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
 {%- endif %}
 
 

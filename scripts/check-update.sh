@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Check that `copier update` applies cleanly: generate a project from the template's current
 # commit, add a test change to a copy of the template, update the project to it and verify the
-# change arrived with no conflicts. Needs only git and copier (no make setup).
+# change arrived with no conflicts. Then turn on sign-in (`--data auth=sessions`) the same way, as
+# an existing project would. Needs only git and copier (no make setup).
 #
 #   scripts/check-update.sh <work-dir>
 set -euo pipefail
@@ -43,4 +44,18 @@ if git grep -nE '^(<<<<<<<|>>>>>>>)' -- . ':!*.lock' || find . -name '*.rej' -no
   exit 1
 fi
 echo "==> copier update applied cleanly:"
+git status --short
+
+git add -A
+git "${git_id[@]}" commit -qm "Update from template"
+copier update --defaults --vcs-ref HEAD --data auth=sessions --conflict inline
+if [ ! -f backend/src/my_project/auth/deps.py ] || [ ! -f backend/src/my_project/db/migrations/0002_auth.sql ]; then
+  echo "copier update --data auth=sessions did not add the auth package and its migration." >&2
+  exit 1
+fi
+if git grep -nE '^(<<<<<<<|>>>>>>>)' -- . ':!*.lock' || find . -name '*.rej' -not -path './.git/*' | grep -q .; then
+  echo "copier update --data auth=sessions left conflicts." >&2
+  exit 1
+fi
+echo "==> turning on auth=sessions applied cleanly:"
 git status --short

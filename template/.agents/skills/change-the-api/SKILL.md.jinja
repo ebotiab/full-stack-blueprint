@@ -17,6 +17,10 @@ Work outward from the database to the visor, so each layer is typed by the one b
    under the `/api` prefix): a Pydantic response model, a typed handler{% if with_database %}, SQL with
    `$1` parameters through the `ConnectionDep` connection (never string formatting){% endif %}. Responses
    are `Cache-Control: no-store` by default; set the header in the route only if its data is public.
+{%- if auth == 'sessions' %}
+   A route for signed-in callers takes `user: CurrentUser` (or `AdminUser`) from `auth/deps.py`;
+   a route that changes state is never a GET.
+{%- endif %}
 {{ n + 1 }}. **Test.** A pytest test in `backend/tests/` for the new behaviour, including its error cases.
 {%- if with_database %} Tests that need
    PostgreSQL use the `db_url`/`db_conn`/`app_settings` fixtures from `tests/conftest.py`.{% endif %}

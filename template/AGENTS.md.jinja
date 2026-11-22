@@ -14,9 +14,12 @@ answers and is only changed by `copier update` (see "Template updates").
 {%- if with_database %}
   - `src/{{ package_name }}/db/`: the connection pool (`pool.py`), the migration runner (`migrate.py`) and the SQL migrations (`migrations/NNNN_name.sql`).
 {%- endif %}
+{%- if auth == 'sessions' %}
+  - `src/{{ package_name }}/auth/`: sign-in. Accounts, sessions and API keys in PostgreSQL (`0002_auth.sql`), the `CurrentUser`/`AdminUser` dependencies (`deps.py`) and `/api/auth/*` (`routes.py`). The package docstring lists its invariants.
+{%- endif %}
   - `src/{{ package_name }}/settings.py`: configuration from environment variables prefixed `{{ env_prefix }}`; defaults work locally.
   - `src/{{ package_name }}/observability.py`: Logfire set-up and the deployed commit. `obs.py`: production status from traces.
-  - `src/{{ package_name }}/cli.py`: the `{{ project_slug }}` command ({% if with_database %}`migrate`, {% endif %}`openapi`, `obs status`).
+  - `src/{{ package_name }}/cli.py`: the `{{ project_slug }}` command ({% if with_database %}`migrate`, {% endif %}{% if auth == 'sessions' %}`users`, `api-keys`, {% endif %}`openapi`, `obs status`).
   - `openapi.json`: the API contract, generated (`make types`). Committed.
   - `tests/`: pytest{% if with_database %}; the integration tests use a real PostgreSQL database{% endif %}.
 {%- if with_frontend %}
@@ -105,6 +108,15 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   sets `Cache-Control` itself (`api/main.py`), so no shared cache serves one caller's response to
   another. Set it only on routes whose data is public{% if with_frontend and api_deploy != 'vercel' %}; Vercel's CDN still skips the proxied `/api`
   until `frontend/vercel.json` turns `x-vercel-enable-rewrite-caching` back on for that path{% endif %}.
+{%- if auth == 'sessions' %}
+- **Sign-in.** Protect a route with a `user: CurrentUser` parameter (`AdminUser` for
+  administrators) from `auth/deps.py`: 401 without credentials, 403 without permission. The
+  browser sends the session cookie by itself, and scripts an API key (`Authorization: Bearer`).
+  Keep the invariants in `auth/__init__.py`, which `tests/test_auth.py` checks: the session token
+  never goes in JSON, tokens are stored hashed, no GET changes state, a cookie request that
+  changes state passes `check_same_origin`. `0002_auth.sql` never changes: extend the tables in a
+  new migration. Accounts are created with the CLI (`users create`); there is no sign-up route.
+{%- endif %}
 - **Configuration.** New settings go in `settings.py` with a local default and the `{{ env_prefix }}` prefix,
   and in `backend/.env.example`. Secrets never enter the repository; everything runs locally without credentials.
 - **No repeated work.** Read what the task needs, not every file. Run long commands (`make check`,
@@ -136,6 +148,7 @@ Visor and API are one Vercel project and one domain (`vercel.json`); the API run
 `deploy.yml` migrates with the direct connection string and then deploys.{% endif %}
 {%- endif %}
 {%- if with_database and api_deploy != 'vercel' %} Production PostgreSQL is Neon (EU region).{% endif %} Logfire receives the traces when `LOGFIRE_TOKEN` is set.
+{%- if auth == 'sessions' %} The first administrator is created with the CLI against the production database (README, "Accounts").{% endif %}
 The one-time manual steps (accounts, secrets, variables) are in the README, "Deploy". Never create
 or change cloud services without the user's explicit go-ahead.
 

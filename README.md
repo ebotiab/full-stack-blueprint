@@ -414,6 +414,17 @@ Two versions held back until every part of a project can run them:
   offers it for new projects. The version is written in `docker-compose.yml` (the image and the
   volume's name) and in the CI's `postgres` service.
 
+One tool to replace:
+
+- **openapi-typescript**, which generates the visor's `schema.d.ts`, has been in maintenance mode
+  since 19 September 2026 (no updates, no security fixes). It stays pinned at 7.13.0, run with
+  `npx` in its own TypeScript 5. Its successor is **openapi-typesafe**, a fork that presents
+  itself as a drop-in replacement ready for TypeScript 7. From its 1.0 release (1.0.0-rc.16 on
+  18 November 2026), switch the two `npx` commands in `frontend/package.json` (`types`,
+  `types:print`) and run `make types`. For this template's schema its output is already the same
+  except for the header comment. The same fork aims to replace `openapi-fetch`, so check that too
+  then. `make schema-check` catches any difference in the generated types.
+
 </details>
 
 ## Manual steps per target

@@ -99,6 +99,16 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   poll production with `curl` meanwhile.
 - **Tests.** Every new rule or route gets a pytest test; every visible behaviour of the visor a
   Playwright test{% if with_frontend %} (mocking `/api`){% endif %}; plain logic a unit test next to it.
+{%- if with_frontend %}
+- **Growing the visor.** `App.tsx` composes the page; each screen or reusable piece goes in its own
+  file under `src/` (e.g. `src/messages/MessageList.tsx`), plain logic in `src/lib/` with its
+  Vitest test. Data comes only through the typed `api` client, fetched in the component that shows
+  it (the `useEffect` pattern in `App.tsx`, cancelled on unmount) and typed from `schema.d.ts`,
+  never redeclared. Add a library only when the visor needs it, in its own pull request: a router
+  (React Router) once there are several pages with their own URLs, TanStack Query once several
+  components share or refresh the same data, a form library once forms need more validation than
+  the browser's. Plain CSS in `src/index.css` until the project chooses a design system.
+{%- endif %}
 {%- if with_database %}
 - **SQL, no ORM.** Queries are plain SQL run with asyncpg, with `$1` parameters (never string
   formatting: ruff's `S608` rejects it), next to the code that uses them; rows become Pydantic models right there. Write the

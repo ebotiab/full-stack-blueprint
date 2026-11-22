@@ -104,7 +104,9 @@ async def test_a_failure_is_retried_later_then_kept_as_failed(
     assert row["attempts"] == 1
     assert row["failed_at"] is None
     assert row["last_error"] == "RuntimeError: not yet"
-    assert row["run_at"] > dt.datetime.now(UTC) + dt.timedelta(seconds=20)
+    # Against the database's clock: Docker's can drift from the host's (after a laptop sleeps).
+    retry_later = "SELECT run_at > now() + interval '20 seconds' FROM jobs WHERE id = $1"
+    assert await conn.fetchval(retry_later, job_id) is True
     assert await run(conn) == 0  # not due yet
     for _ in range(queue.MAX_ATTEMPTS - 1):
         await conn.execute("UPDATE jobs SET run_at = now()")

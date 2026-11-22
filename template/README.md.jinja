@@ -56,6 +56,15 @@ HttpOnly session cookie (7 days without use or 30 in total end it). Scripts send
 `Authorization: Bearer <key>`.
 `users set-password`, `users deactivate`, `api-keys list` and `api-keys revoke` do the rest; `--help`
 explains each one. Ten wrong passwords in a row pause an account's sign-in for a minute per attempt.
+{%- elif auth == 'oidc' %}
+
+## Sign-in
+
+Accounts live at an OpenID Connect provider (Auth0, Keycloak, Zitadel, Logto, Neon Auth…). Clients
+send its tokens as `Authorization: Bearer <token>`; the API verifies them against the provider's
+published keys and `/api/auth/me` returns the caller{% if with_database %}, kept in the `users` table from the first request{% endif %}.
+Set `{{ env_prefix }}AUTH_ISSUER` (and usually `{{ env_prefix }}AUTH_AUDIENCE`) in `backend/.env` and on the API's
+platform: until then protected routes answer 503. `backend/.env.example` lists the other settings.
 {%- endif %}
 
 ## Deploy
@@ -116,6 +125,11 @@ different, change it there. Web Analytics: turn it on in the project (no cookies
 **GitHub.** Protect `main`: require pull requests and the checks `Backend` and `Frontend`, and
 allow auto-merge (Settings → General → "Allow auto-merge").
 
+{%- if auth == 'oidc' %}
+
+**Sign-in provider.** Create an application for the API at your OIDC provider (in an EU region if it
+offers one) and set `{{ env_prefix }}AUTH_ISSUER` and `{{ env_prefix }}AUTH_AUDIENCE` on the API's platform.
+{%- endif %}
 {%- if auth == 'sessions' %}
 
 **First administrator.** Once the API is deployed, create it against the production database:

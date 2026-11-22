@@ -1,0 +1,10 @@
+-- Users seen in the provider's tokens (auth/users.py). Never edit this file: the runner refuses an
+-- applied migration that changed. Extend the table in a new migration.
+CREATE TABLE users (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    issuer TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    email TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (issuer, subject)
+);

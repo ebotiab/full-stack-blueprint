@@ -1,12 +1,12 @@
 """Settings read from the environment (and from backend/.env). Everything works locally without credentials."""
 
 from functools import lru_cache
-{%- if auth == 'sessions' %}
+{%- if auth != 'none' %}
 from typing import Annotated
 {%- endif %}
 
-from pydantic import AliasChoices, Field{% if auth == 'sessions' %}, field_validator{% endif %}
-from pydantic_settings import BaseSettings, {% if auth == 'sessions' %}NoDecode, {% endif %}SettingsConfigDict
+from pydantic import AliasChoices, Field{% if auth != 'none' %}, field_validator{% endif %}
+from pydantic_settings import BaseSettings, {% if auth != 'none' %}NoDecode, {% endif %}SettingsConfigDict
 
 #: Prefix of this project's environment variables.
 PREFIX = "{{ env_prefix }}"
@@ -57,6 +57,40 @@ class Settings(BaseSettings):
     def _split_origins(cls, value: object) -> object:
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
+{%- elif auth == 'oidc' %}
+    #: The provider's issuer, exactly as its tokens' `iss` says (e.g. `https://my-app.eu.auth0.com/`).
+    #: While it is empty, protected routes answer 503: sign-in is not configured.
+    auth_issuer: str = ""
+    #: Where the provider publishes its signing keys. Empty: read from the issuer's OpenID
+    #: discovery document (`<issuer>/.well-known/openid-configuration`).
+    auth_jwks_url: str = ""
+    #: The `aud` every token must carry (the API's identifier at the provider). Empty: not checked.
+    auth_audience: str = ""
+    #: Signature algorithms accepted, comma-separated. Asymmetric only: see `auth/verify.py`.
+    auth_algorithms: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["RS256", "ES256", "EdDSA"]
+    )
+    #: Client ids accepted in `azp`, comma-separated, for providers whose tokens carry no `aud`
+    #: (Clerk). Empty: not checked.
+    auth_authorized_parties: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    #: The claim that holds the user's email (Auth0 namespaces custom claims: set its name here).
+    auth_email_claim: str = "email"
+
+    @field_validator("auth_algorithms", "auth_authorized_parties", mode="before")
+    @classmethod
+    def _split(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+    @field_validator("auth_algorithms")
+    @classmethod
+    def _asymmetric_only(cls, value: list[str]) -> list[str]:
+        # HS256 would make the provider's public key a shared secret: anyone could sign tokens.
+        refused = [alg for alg in value if alg.upper().startswith("HS") or alg.lower() == "none"]
+        if refused:
+            raise ValueError(f"only asymmetric algorithms are accepted, not {refused}")
         return value
 {%- endif %}
 

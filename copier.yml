@@ -125,7 +125,8 @@ postgres_port:
 
 # Sign-in. `none` stays the default: a project without accounts carries no security code, and
 # turning it on later is an update like any other (`copier update --defaults --data auth=sessions`).
-# `sessions` keeps accounts, sessions and API keys in the project's PostgreSQL (backend/src/<package>/auth/).
+# `sessions` keeps accounts, sessions and API keys in the project's PostgreSQL; `oidc` leaves the
+# accounts to an external provider and verifies its tokens (both in backend/src/<package>/auth/).
 auth:
   type: str
   help: Sign-in for the API.
@@ -133,6 +134,7 @@ auth:
   choices:
     "None": none
     "Own accounts: email and password, sessions in PostgreSQL, API keys (needs the database)": sessions
+    "External OIDC provider (Auth0, Keycloak, Zitadel, Logto, Neon Auth…): the API verifies its tokens": oidc
   validator: >-
     {% if auth == 'sessions' and not with_database %}auth=sessions keeps accounts and sessions in
     PostgreSQL: it needs with_database=true.{% endif %}

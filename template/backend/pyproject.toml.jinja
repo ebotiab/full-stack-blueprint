@@ -20,6 +20,9 @@ dependencies = [
 {%- if auth == 'sessions' %}
     # Argon2id password hashing (auth/passwords.py).
     "pwdlib[argon2]>=0.4.0",
+{%- elif auth == 'oidc' %}
+    # Verification of the provider's signed tokens (auth/verify.py).
+    "pyjwt[crypto]>=2.15.1",
 {%- endif %}
     "typer>=0.29.1",
     "uvicorn[standard]>=0.54.0",

@@ -311,7 +311,7 @@ when the CI passes. After that, merging into `main` deploys.
 | `with_frontend` | `true` | include the visor |
 | `with_database` | `true` | include PostgreSQL |
 | `postgres_port` | `5434` | host port of the local PostgreSQL (asked only with a database) |
-| `auth` | `none` | `none`, `sessions` (own accounts in PostgreSQL; needs the database) |
+| `auth` | `none` | `none`, `sessions` (own accounts in PostgreSQL; needs the database), `oidc` (an external provider's tokens) |
 | `type_checker` | `pyright` | `pyright`, `ty` |
 | `api_deploy` | `render` | `render`, `fastapi_cloud`, `railway`, `vercel` |
 | `api_public_url` | the platform's usual URL | where the visor's `vercel.json` proxies `/api` (asked only with a visor and a non-Vercel API) |
@@ -342,6 +342,27 @@ app and the API share an origin, as they do here on every target:
 
 `none` stays the default: a project without accounts carries no security code, and
 `copier update --defaults --data auth=sessions` adds it later.
+
+</details>
+
+<details>
+<summary><b>What <code>auth: oidc</code> adds</b></summary>
+
+For projects that need what an identity provider sells (SSO and SAML, organizations, MFA with
+recovery, passkeys, a ready account UI): the provider owns the accounts and the API verifies its
+signed tokens, sent as `Authorization: Bearer`. One verifier fits Auth0, Keycloak, Zitadel, Logto,
+Kinde, Pocket ID, Supabase and Neon Auth (and Clerk, through `azp`):
+
+- **Keys** come from the provider's JWKS (found through OpenID discovery unless set), fetched with
+  the project's async httpx, cached for an hour and fetched again on an unknown key id at most
+  once a minute.
+- **Checks**: signature with asymmetric algorithms only (RS256, ES256, EdDSA, which rules out
+  HS256 confusion), issuer, expiry with 30 seconds of leeway, and audience and authorized party
+  when set. Settings are `<PREFIX>AUTH_ISSUER`, `AUTH_AUDIENCE`, `AUTH_JWKS_URL`,
+  `AUTH_ALGORITHMS`, `AUTH_AUTHORIZED_PARTIES` and `AUTH_EMAIL_CLAIM`.
+- **Users**: with a database, one row per `(issuer, subject)`, created on first sight; without
+  one, `CurrentUser` comes from the claims alone. It works with or without the database.
+- **Tests** run offline: a test key signs the tokens and a fake provider serves its keys.
 
 </details>
 

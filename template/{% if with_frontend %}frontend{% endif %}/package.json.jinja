@@ -19,9 +19,13 @@
   "dependencies": {
     "@pydantic/logfire-browser": "^0.35.1",
     "@vercel/analytics": "^2.0.1",
+{%- if auth == 'oidc' %}
+    "oidc-client-ts": "^3.5.0",
+{%- endif %}
     "openapi-fetch": "^0.17.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1"{% if auth == 'oidc' %},
+    "react-oidc-context": "^3.3.1"{% endif %}
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",

@@ -4,6 +4,9 @@ import httpx
 from fastapi import FastAPI, Response
 
 from {{ package_name }}.api.main import create_app
+{%- if auth == 'oidc' and not with_database %}
+from {{ package_name }}.auth.deps import User, current_user
+{%- endif %}
 
 
 def client(app: FastAPI | None = None) -> httpx.AsyncClient:
@@ -23,7 +26,14 @@ async def test_healthz() -> None:
 
 
 async def test_messages() -> None:
+{%- if auth == 'oidc' %}
+    app = create_app()
+    # A stand-in for the signed-in user: tests/test_auth.py covers token verification.
+    app.dependency_overrides[current_user] = lambda: User(subject="user-1", email=None)
+    async with client(app) as http:
+{%- else %}
     async with client() as http:
+{%- endif %}
         response = await http.get("/api/messages")
     assert response.status_code == 200
     assert response.json()[0]["text"] == "Hello from FastAPI"

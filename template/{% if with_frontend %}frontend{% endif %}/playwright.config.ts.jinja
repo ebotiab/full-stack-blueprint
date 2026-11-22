@@ -19,6 +19,10 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: false,
     timeout: 60_000,
+{%- if auth == 'oidc' %}
+    // A provider that does not exist: the tests answer its requests themselves.
+    env: { VITE_OIDC_AUTHORITY: 'https://id.example.test', VITE_OIDC_CLIENT_ID: 'visor' },
+{%- endif %}
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },

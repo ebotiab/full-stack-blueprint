@@ -65,6 +65,10 @@ send its tokens as `Authorization: Bearer <token>`; the API verifies them agains
 published keys and `/api/auth/me` returns the caller{% if with_database %}, kept in the `users` table from the first request{% endif %}.
 Set `{{ env_prefix }}AUTH_ISSUER` (and usually `{{ env_prefix }}AUTH_AUDIENCE`) in `backend/.env` and on the API's
 platform: until then protected routes answer 503. `backend/.env.example` lists the other settings.
+{%- if with_frontend %} The visor signs in at
+the provider (code flow with PKCE) and sends the token with every request; `/api/messages`, the example route,
+answers only signed-in users. It needs `VITE_OIDC_AUTHORITY` and `VITE_OIDC_CLIENT_ID` in `frontend/.env.local` and in
+Vercel (`frontend/.env.example`).{% endif %}
 {%- endif %}
 
 ## Deploy
@@ -129,6 +133,9 @@ allow auto-merge (Settings → General → "Allow auto-merge").
 
 **Sign-in provider.** Create an application for the API at your OIDC provider (in an EU region if it
 offers one) and set `{{ env_prefix }}AUTH_ISSUER` and `{{ env_prefix }}AUTH_AUDIENCE` on the API's platform.
+{%- if with_frontend %} Create a single-page application for the visor too: register `http://127.0.0.1:5173`, the production URL and,
+if the provider allows patterns, the preview URLs as redirect and logout URLs, and set `VITE_OIDC_AUTHORITY`,
+`VITE_OIDC_CLIENT_ID` (and `VITE_OIDC_AUDIENCE` if the provider needs it) in Vercel.{% endif %}
 {%- endif %}
 {%- if auth == 'sessions' %}
 

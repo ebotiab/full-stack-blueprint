@@ -1,0 +1,47 @@
+import { expect, test } from '@playwright/test'
+
+// The provider does not exist (playwright.config.ts sets https://id.example.test): the tests answer
+// its requests and /api themselves. Token verification is pytest's job (backend/tests/test_auth.py).
+const provider = 'https://id.example.test'
+
+test('sends the browser to the provider with PKCE', async ({ page }) => {
+  await page.route(`${provider}/.well-known/openid-configuration`, (route) =>
+    route.fulfill({
+      json: {
+        issuer: provider,
+        authorization_endpoint: `${provider}/authorize`,
+        token_endpoint: `${provider}/token`,
+        jwks_uri: `${provider}/jwks`,
+      },
+    }),
+  )
+  await page.route(`${provider}/authorize**`, (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<h1>Provider</h1>' }),
+  )
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.waitForURL(`${provider}/authorize**`)
+  const params = new URL(page.url()).searchParams
+  expect(params.get('client_id')).toBe('visor')
+  expect(params.get('response_type')).toBe('code')
+  expect(params.get('code_challenge_method')).toBe('S256')
+})
+
+test('sends the access token with API requests', async ({ page }) => {
+  await page.addInitScript(() => {
+    const user = { access_token: 'test-token', token_type: 'Bearer', profile: { sub: 'user-1' } }
+    const key = 'oidc.user:https://id.example.test:visor'
+    sessionStorage.setItem(key, JSON.stringify({ ...user, expires_at: 4102444800 }))
+  })
+  let authorization: string | undefined
+  await page.route('**/api/messages', (route) => {
+    authorization = route.request().headers()['authorization']
+    return route.fulfill({
+      json: [{ id: 1, text: 'Hello', created_at: '2026-11-18T10:05:00Z' }],
+    })
+  })
+  await page.goto('/')
+  await expect(page.getByText('Signed in as user-1')).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Messages' })).toBeVisible()
+  expect(authorization).toBe('Bearer test-token')
+})

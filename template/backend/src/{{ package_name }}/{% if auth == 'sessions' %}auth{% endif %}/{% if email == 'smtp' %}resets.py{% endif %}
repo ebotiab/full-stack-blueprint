@@ -1,0 +1,82 @@
+"""Password reset by email: a one-time code, valid for an hour, stored only as a hash.
+
+The code has 8 characters from an alphabet without look-alikes (Crockford's base 32), shown as
+ABCD-EFGH: 40 bits. Each guess spends one of the account's password attempts (limits.py), so it
+cannot be guessed within its hour. A new request replaces the previous code; using it deletes it.
+"""
+
+import datetime as dt
+import secrets
+from email.message import EmailMessage
+
+import asyncpg
+
+from .. import mail
+from . import tokens
+from .users import normalize_email
+
+LIFETIME = dt.timedelta(hours=1)
+#: Reset emails per account: three, then one more every ten minutes.
+REQUESTS_CAPACITY = 3.0
+REQUESTS_REFILL_SECONDS = 600.0
+
+_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+def new_code() -> str:
+    return "".join(secrets.choice(_ALPHABET) for _ in range(8))
+
+
+def normalize(code: str) -> str:
+    """What the user typed, as stored: upper case, without the dash or spaces."""
+    return code.upper().replace("-", "").replace(" ", "")
+
+
+def email_message(to: str, code: str) -> EmailMessage:
+    text = (
+        f"Your code to set a new password: {code[:4]}-{code[4:]}\n\n"
+        "It works once, for one hour. If you did not ask for it, ignore this email: your\n"
+        "password stays as it is.\n"
+    )
+    return mail.message(to, "Your password reset code", text)
+
+
+async def create(conn: asyncpg.Connection, email: str) -> str | None:
+    """A new code for the active user with this email, or None when there is no such user."""
+    user_id = await conn.fetchval(
+        "SELECT id FROM users WHERE email = $1 AND is_active", normalize_email(email)
+    )
+    if user_id is None:
+        return None
+    code = new_code()
+    await conn.execute(
+        """
+        INSERT INTO password_resets (user_id, code_hash, expires_at)
+        VALUES ($1, $2, now() + $3::interval)
+        ON CONFLICT (user_id) DO UPDATE
+        SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at
+        """,
+        user_id,
+        tokens.hash_secret(code),
+        LIFETIME,
+    )
+    return code
+
+
+async def redeem(conn: asyncpg.Connection, email: str, code: str) -> int | None:
+    """The user's id when the code is right and still valid, and the code is used up; else None."""
+    row = await conn.fetchrow(
+        """
+        SELECT r.user_id, r.code_hash FROM password_resets r JOIN users u ON u.id = r.user_id
+        WHERE u.email = $1 AND u.is_active AND r.expires_at > now()
+        """,
+        normalize_email(email),
+    )
+    if row is None or not tokens.secret_matches(normalize(code), row["code_hash"]):
+        return None
+    await conn.execute("DELETE FROM password_resets WHERE user_id = $1", row["user_id"])
+    return row["user_id"]
+
+
+async def delete_expired(conn: asyncpg.Connection) -> None:
+    await conn.execute("DELETE FROM password_resets WHERE expires_at < now()")

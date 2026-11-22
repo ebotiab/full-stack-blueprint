@@ -2,7 +2,13 @@
 
 import asyncio
 import hashlib
+{%- if email == 'smtp' %}
+import re
+{%- endif %}
 from collections.abc import AsyncIterator
+{%- if email == 'smtp' %}
+from email.message import EmailMessage
+{%- endif %}
 
 import asyncpg
 import httpx
@@ -25,6 +31,9 @@ from {{ package_name }}.auth.deps import (
 )
 from {{ package_name }}.cli import app as cli
 from {{ package_name }}.db.migrate import migrate
+{%- if email == 'smtp' %}
+from {{ package_name }}.mail import get_mailer
+{%- endif %}
 from {{ package_name }}.settings import PREFIX, get_settings
 
 EMAIL = "ada@example.com"
@@ -342,3 +351,84 @@ def test_the_cli_manages_accounts_and_api_keys(app_settings: None) -> None:
     assert runner.invoke(cli, ["users", "deactivate", "--email", EMAIL]).exit_code == 0
     unknown = ["users", "deactivate", "--email", "nobody@example.com"]
     assert runner.invoke(cli, unknown).exit_code == 1
+{%- if email == 'smtp' %}
+
+
+class Outbox:
+    """Stands in for the SMTP mailer: keeps what would have been sent."""
+
+    def __init__(self) -> None:
+        self.sent: list[EmailMessage] = []
+
+    async def send(self, message: EmailMessage) -> None:
+        self.sent.append(message)
+
+    def code(self) -> str:
+        body = self.sent[-1].get_content()
+        found = re.search(r"\b([0-9A-Z]{4}-[0-9A-Z]{4})\b", body)
+        assert found, body
+        return found.group(1)
+
+
+@pytest.fixture
+def outbox(app: FastAPI) -> Outbox:
+    box = Outbox()
+    app.dependency_overrides[get_mailer] = lambda: box
+    return box
+
+
+async def request_reset(http: httpx.AsyncClient, email: str = EMAIL) -> httpx.Response:
+    return await http.post("/api/auth/password-reset", json={"email": email}, headers=SAME_ORIGIN)
+
+
+async def confirm_reset(
+    http: httpx.AsyncClient, code: str, password: str = NEW_PASSWORD
+) -> httpx.Response:
+    body = {"email": EMAIL, "code": code, "new_password": password}
+    return await http.post("/api/auth/password-reset/confirm", json=body, headers=SAME_ORIGIN)
+
+
+async def test_a_reset_code_sets_a_new_password_once(
+    http: httpx.AsyncClient, user: users.User, conn: asyncpg.Connection, outbox: Outbox
+) -> None:
+    await login(http)
+    session = http.cookies[COOKIE]
+    assert (await request_reset(http)).status_code == 204
+    assert [m["To"] for m in outbox.sent] == [EMAIL]
+    code = outbox.code()
+    stored = await conn.fetchval("SELECT code_hash FROM password_resets")
+    assert stored == hashlib.sha256(code.replace("-", "").encode()).digest()
+
+    assert (await confirm_reset(http, code.lower())).status_code == 204
+    old_session = await http.get("/api/auth/me", headers={"Cookie": f"{COOKIE}={session}"})
+    assert old_session.status_code == 401
+    assert (await login(http)).status_code == 401
+    assert (await login(http, password=NEW_PASSWORD)).status_code == 200
+    assert (await confirm_reset(http, code, "yet another password")).status_code == 400
+
+
+async def test_an_unknown_email_gets_the_same_answer_and_no_email(
+    http: httpx.AsyncClient, user: users.User, outbox: Outbox
+) -> None:
+    assert (await request_reset(http, "nobody@example.com")).status_code == 204
+    assert outbox.sent == []
+
+
+async def test_a_wrong_or_expired_code_is_refused(
+    http: httpx.AsyncClient, user: users.User, conn: asyncpg.Connection, outbox: Outbox
+) -> None:
+    await request_reset(http)
+    assert (await confirm_reset(http, "AAAA-AAAA")).status_code == 400
+    await conn.execute("UPDATE password_resets SET expires_at = now() - interval '1 minute'")
+    assert (await confirm_reset(http, outbox.code())).status_code == 400
+    assert (await login(http)).status_code == 200
+
+
+async def test_reset_emails_are_limited_per_account(
+    http: httpx.AsyncClient, user: users.User, outbox: Outbox
+) -> None:
+    for _ in range(3):
+        assert (await request_reset(http)).status_code == 204
+    assert (await request_reset(http)).status_code == 429
+    assert len(outbox.sent) == 3
+{%- endif %}

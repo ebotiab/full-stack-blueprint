@@ -1,8 +1,9 @@
 """Settings read from the environment (and from backend/.env). Everything works locally without credentials."""
 
 from functools import lru_cache
-{%- if auth != 'none' %}
-from typing import Annotated
+{%- set typing_names = (['Annotated'] if auth != 'none' else []) + (['Literal'] if email == 'smtp' else []) %}
+{%- if typing_names %}
+from typing import {{ typing_names | join(', ') }}
 {%- endif %}
 
 from pydantic import AliasChoices, Field{% if auth != 'none' %}, field_validator{% endif %}
@@ -52,6 +53,18 @@ class Settings(BaseSettings):
     #: (frontend/vercel.json, from the Vercel variable ORIGIN_SECRET). When set, the API refuses
     #: /api requests without it: only the visor's domain reaches the API. Empty: not checked.
     origin_secret: str = ""
+{%- endif %}
+{%- if email == 'smtp' %}
+    #: Outgoing email (mail.py). The defaults reach the local Mailpit (`make db-up`), which shows
+    #: every message at http://localhost:8025. In production: your provider's SMTP server.
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_username: str = ""
+    smtp_password: str = ""
+    #: `starttls` for port 587, `tls` for port 465; `none` only for Mailpit.
+    smtp_security: Literal["none", "starttls", "tls"] = "none"
+    #: The sender, e.g. `My App <no-reply@my-app.com>`, on a domain your provider has verified.
+    email_from: str = "no-reply@localhost"
 {%- endif %}
 {%- if auth == 'sessions' %}
     #: The visor's origins, comma-separated (`https://my-app.vercel.app`). Only browsers that do not

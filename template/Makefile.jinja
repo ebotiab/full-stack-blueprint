@@ -54,7 +54,7 @@ setup: ## Install dependencies{% if with_database %}, start PostgreSQL, migrate{
 		"Playwright browser (Chromium)::cd frontend && npx playwright install chromium" \
 {%- endif %}
 {%- if with_database %}
-		"PostgreSQL (docker compose)::$(MAKE) db-up" \
+		"PostgreSQL{% if email == 'smtp' %} and Mailpit{% endif %} (docker compose)::$(MAKE) db-up" \
 		"Migrations::cd backend && uv run {{ project_slug }} migrate" \
 {%- endif %}
 		"API schema{% if with_frontend %} and types{% endif %}::$(MAKE) types"
@@ -135,12 +135,12 @@ migrate: ## Apply pending SQL migrations to the local database
 	@$(MAKE) db-up
 	@cd backend && uv run {{ project_slug }} migrate
 
-db-up: ## Start the local PostgreSQL (docker compose) and create the test database
-	@docker compose up -d --wait postgres
+db-up: ## Start the local PostgreSQL{% if email == 'smtp' %} and Mailpit (http://localhost:8025){% endif %} (docker compose) and create the test database
+	@docker compose up -d --wait postgres{% if email == 'smtp' %} mailpit{% endif %}
 	@docker compose exec -T postgres psql -U {{ package_name }} -d {{ package_name }} -tAc \
 		"SELECT 1 FROM pg_database WHERE datname = '{{ package_name }}_test'" | grep -q 1 \
 		|| docker compose exec -T postgres createdb -U {{ package_name }} {{ package_name }}_test
 
-db-down: ## Stop the local PostgreSQL (the data stays in a Docker volume)
-	@docker compose stop postgres
+db-down: ## Stop the local PostgreSQL{% if email == 'smtp' %} and Mailpit{% endif %} (the data stays in a Docker volume)
+	@docker compose stop postgres{% if email == 'smtp' %} mailpit{% endif %}
 {%- endif %}

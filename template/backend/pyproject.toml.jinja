@@ -96,7 +96,7 @@ select = [
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
-{%- if auth == 'sessions' %}
+{%- if auth == 'sessions' or email == 'smtp' %}
 # Tests assert and sign in with made-up passwords.
 "tests/*" = ["S101", "S105", "S106"]
 {%- else %}

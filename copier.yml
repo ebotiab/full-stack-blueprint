@@ -139,6 +139,20 @@ auth:
     {% if auth == 'sessions' and not with_database %}auth=sessions keeps accounts and sessions in
     PostgreSQL: it needs with_database=true.{% endif %}
 
+# Outgoing email through SMTP, so any provider works (Resend, Postmark, Amazon SES, Brevo…).
+# Locally the messages go to Mailpit, a container next to PostgreSQL that shows them in the browser.
+# With auth=sessions it also adds password reset by emailed one-time codes.
+email:
+  type: str
+  help: Outgoing email (SMTP); with auth=sessions, password reset by email.
+  default: none
+  choices:
+    "None": none
+    "SMTP: any provider, Mailpit locally, password reset with auth=sessions (needs the database)": smtp
+  validator: >-
+    {% if email == 'smtp' and not with_database %}email=smtp runs Mailpit in the database's
+    docker-compose for local development: it needs with_database=true.{% endif %}
+
 # Python type checker. pyright is the default because it is stable and matches Pylance (VS Code).
 # ty (Astral) is faster and is the planned default once it reaches a stable 1.0 release: when that
 # happens, change `default: pyright` to `default: ty` below (one line) and update the README

@@ -56,6 +56,19 @@ if command -v docker >/dev/null 2>&1; then
     else
       ok "port {{ postgres_port }} is available for PostgreSQL"
     fi
+{%- if email == 'smtp' %}
+    # Mailpit's ports (SMTP and its web page), also free or already ours.
+    for port in 1025 8025; do
+      owner=$(docker ps --filter "publish=$port" --format '{{ '{{' }}.Names{{ '}}' }}' | head -n1)
+      if [ -n "$owner" ] && [ "$owner" != "{{ project_slug }}-mailpit" ]; then
+        bad "port $port is used by the container $owner" "stop it (another project's Mailpit?): docker stop $owner"
+      elif [ -z "$owner" ] && (exec 3<>/dev/tcp/127.0.0.1/$port) 2>/dev/null; then
+        bad "port $port is used by another program" "stop it: Mailpit needs ports 1025 and 8025"
+      else
+        ok "port $port is available for Mailpit"
+      fi
+    done
+{%- endif %}
   else
     bad "docker is installed but its daemon is not running" "start Docker Desktop (or: sudo systemctl start docker)"
   fi

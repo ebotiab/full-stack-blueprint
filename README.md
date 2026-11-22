@@ -314,6 +314,7 @@ when the CI passes. After that, merging into `main` deploys.
 | `with_database` | `true` | include PostgreSQL |
 | `postgres_port` | `5434` | host port of the local PostgreSQL (asked only with a database) |
 | `auth` | `none` | `none`, `sessions` (own accounts in PostgreSQL; needs the database), `oidc` (an external provider's tokens) |
+| `email` | `none` | `none`, `smtp` (any provider; Mailpit locally; password reset with `sessions`; needs the database) |
 | `type_checker` | `pyright` | `pyright`, `ty` |
 | `api_deploy` | `render` | `render`, `fastapi_cloud`, `railway`, `vercel` |
 | `api_public_url` | the platform's usual URL | where the visor's `vercel.json` proxies `/api` (asked only with a visor and a non-Vercel API) |
@@ -370,6 +371,25 @@ Kinde, Pocket ID, Supabase and Neon Auth (and Clerk, through `azp`):
   page, which is why `sessions` is the first choice for apps with personal data.
 - **Tests** run offline: a test key signs the tokens and a fake provider serves its keys; Playwright
   answers the provider's requests itself.
+
+</details>
+
+<details>
+<summary><b>What <code>email: smtp</code> adds</b></summary>
+
+Outgoing email through SMTP, which every transactional provider offers (Resend, Postmark, Amazon
+SES, Brevo…), so no provider SDK and no lock-in:
+
+- **Sending**: `backend/src/<package>/mail.py` builds plain-text messages and sends them with the
+  standard library's `smtplib` in a thread; routes hand them to a background task, so the response
+  never waits for the mail server. `send-test-email` checks the production settings.
+- **Locally**: Mailpit in `docker-compose.yml` (started with PostgreSQL) catches every message and
+  shows it at http://localhost:8025. Nothing needs credentials or leaves the machine.
+- **With `auth=sessions`**: password reset. `POST /api/auth/password-reset` emails a one-time code
+  (8 characters, stored as a hash, valid for an hour, three emails per account then one every ten
+  minutes) and answers the same whether or not the account exists; `/confirm` sets the new password
+  and ends every session. Each guess spends the account's password attempts.
+- **Tests** replace the mailer (no SMTP server needed) and `smtplib` itself.
 
 </details>
 
@@ -447,6 +467,8 @@ For every project:
 - **Neon** (with a database): a project in an EU region (`aws-eu-central-1`); the direct connection
   string for Render, Railway, FastAPI Cloud and migrations; the pooled one (`-pooler`) for Vercel.
 - **GitHub**: protect `main` with the required checks `Backend` and `Frontend`, and allow auto-merge.
+- **Email** (with `email: smtp`): an SMTP provider with your sending domain verified, and its
+  `SMTP_*` settings plus `EMAIL_FROM` (with the project's prefix) on the API's platform.
 
 Then the steps for your target:
 

@@ -1,11 +1,16 @@
 """Sign-in routes under /api/auth. The session token goes in the cookie only, never in JSON."""
 
 import asyncpg
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, {% if email == 'smtp' %}BackgroundTasks, {% endif %}HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 
 from ..api.deps import ConnectionDep
+{%- if email == 'smtp' %}
+from ..mail import MailerDep, deliver
+from . import limits, passwords, resets, sessions, users
+{%- else %}
 from . import limits, passwords, sessions, users
+{%- endif %}
 from .deps import (
     CurrentSession,
     CurrentUser,
@@ -88,3 +93,55 @@ async def change_password(
 async def me(user: CurrentUser) -> User:
     """The signed-in user: 401 when there is none."""
     return user
+{%- if email == 'smtp' %}
+
+
+class ResetRequest(BaseModel):
+    email: str = Field(max_length=254)
+
+
+class ResetConfirmation(BaseModel):
+    email: str = Field(max_length=254)
+    code: str = Field(max_length=20)
+    new_password: str = Field(min_length=passwords.MIN_LENGTH, max_length=passwords.MAX_LENGTH)
+
+
+@router.post("/password-reset", status_code=status.HTTP_204_NO_CONTENT)
+async def request_password_reset(
+    body: ResetRequest,
+    request: Request,
+    conn: ConnectionDep,
+    mailer: MailerDep,
+    background: BackgroundTasks,
+) -> None:
+    """Email a one-time code to set a new password.
+
+    The answer is the same whether or not the email has an account, and the email leaves after
+    the response, so neither the answer nor its timing tells.
+    """
+    check_same_origin(request)
+    key = f"reset:{users.normalize_email(body.email)}"
+    if not await limits.take(conn, key, resets.REQUESTS_CAPACITY, resets.REQUESTS_REFILL_SECONDS):
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Too many reset emails for this account. Try again later.",
+            headers={"Retry-After": str(int(resets.REQUESTS_REFILL_SECONDS))},
+        )
+    await resets.delete_expired(conn)
+    code = await resets.create(conn, body.email)
+    if code is not None:
+        background.add_task(deliver, mailer, resets.email_message(body.email, code))
+
+
+@router.post("/password-reset/confirm", status_code=status.HTTP_204_NO_CONTENT)
+async def confirm_password_reset(
+    body: ResetConfirmation, request: Request, conn: ConnectionDep
+) -> None:
+    """Set a new password with the emailed code. Every session of the user ends: sign in again."""
+    check_same_origin(request)
+    await _take_attempt(conn, body.email)
+    user_id = await resets.redeem(conn, body.email, body.code)
+    if user_id is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Wrong or expired code.")
+    await users.set_password(conn, user_id, body.new_password)
+{%- endif %}

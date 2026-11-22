@@ -31,6 +31,7 @@ Optional local settings: `backend/.env.example`{% if with_frontend %} and `front
 | --- | --- |
 | `make check` | Formatting, lint, types, API contract, tests{% if with_frontend %}, build and Playwright{% endif %}: what the CI runs. |
 | `make test` | pytest{% if with_frontend %} and Vitest; `make e2e` runs Playwright{% endif %}. |
+| `make coverage` | The backend lines that no test runs (a report, no threshold). |
 | `make fmt` | Formats and auto-fixes the code. |
 | `make types` | Regenerates the OpenAPI schema{% if with_frontend %} and the visor's API types{% endif %} after an API change. |
 {%- if with_database %}

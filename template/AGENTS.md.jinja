@@ -67,6 +67,7 @@ code, and the multi-step ones print a summary of what passed and failed.
 | `make dev` | Runs the API on :8000{% if with_frontend %} and the visor on :5173{% endif %} with reload. |
 | `make check` | Everything the CI checks. Must pass before a pull request. |
 | `make test` | pytest{% if with_frontend %} and Vitest{% endif %}.{% if with_frontend %} `make e2e` runs Playwright.{% endif %} |
+| `make coverage` | pytest with the backend lines no test runs. A report to read, with no threshold to pass. |
 | `make fmt` | Formats and auto-fixes (ruff{% if with_frontend %}, oxfmt{% endif %}). |
 | `make types` | Regenerates `backend/openapi.json`{% if with_frontend %} and `frontend/src/api/schema.d.ts`{% endif %}. Run it after any API change. |
 {%- if with_database %}
@@ -100,7 +101,9 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   token, then say so and check by hand). Investigate any error before calling the task done. Do not
   poll production with `curl` meanwhile.
 - **Tests.** Every new rule or route gets a pytest test; every visible behaviour of the visor a
-  Playwright test{% if with_frontend %} (mocking `/api`){% endif %}; plain logic a unit test next to it.
+  Playwright test{% if with_frontend %} (mocking `/api`){% endif %}; plain logic a unit test next to it. Before finishing a
+  backend change, `make coverage` lists the lines of the files you touched that no test runs: cover
+  the ones that carry a rule or an error case.
 {%- if with_frontend %}
 - **Growing the visor.** `App.tsx` composes the page; each screen or reusable piece goes in its own
   file under `src/` (e.g. `src/messages/MessageList.tsx`), plain logic in `src/lib/` with its

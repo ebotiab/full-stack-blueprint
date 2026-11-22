@@ -41,7 +41,7 @@ name_of_length() {
 render() {
   local options
   case $1 in
-    vercel-db) options=(--data api_deploy=vercel --data auth=sessions) ;;
+    vercel-db) options=(--data api_deploy=vercel --data auth=sessions --data email=smtp) ;;
     render-nodb) options=(--data with_database=false --data auth=oidc) ;;
   esac
   # PYTHONWARNINGS: one "dirty template" warning per project would bury the output.

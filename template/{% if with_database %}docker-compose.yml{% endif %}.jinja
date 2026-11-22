@@ -1,4 +1,4 @@
-# Local PostgreSQL for development and tests: `make db-up` (or `docker compose up -d --wait`).
+# Local PostgreSQL{% if email == 'smtp' %} and Mailpit{% endif %} for development and tests: `make db-up` (or `docker compose up -d --wait`).
 # Production uses Neon{% if api_deploy == 'railway' %} or Railway's PostgreSQL{% endif %} (README, "Deploy").
 services:
   postgres:
@@ -22,6 +22,22 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+{%- if email == 'smtp' %}
+
+  # Local email: the API sends through SMTP on port 1025 and every message shows up at
+  # http://localhost:8025. Nothing leaves the machine.
+  mailpit:
+    image: axllent/mailpit:v1.33
+    container_name: {{ project_slug }}-mailpit
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+{%- endif %}
 
 volumes:
   postgres18:

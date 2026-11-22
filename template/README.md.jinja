@@ -25,7 +25,10 @@ The API documentation is at http://127.0.0.1:8000/docs while `make dev` runs. No
 credentials locally: Logfire sends nothing without a token{% if with_database %}, and the database is the local container{% endif %}.
 Optional local settings: `backend/.env.example`{% if with_frontend %} and `frontend/.env.example`{% endif %}.
 
-## Everyday commands
+{% if email == 'smtp' %}Outgoing email goes to a local Mailpit while you develop: every message the API sends shows up at
+http://localhost:8025 (`make setup` and `make dev` start it with PostgreSQL). Nothing leaves your machine.
+
+{% endif %}## Everyday commands
 
 | Command | What it does |
 | --- | --- |
@@ -57,6 +60,9 @@ HttpOnly session cookie (7 days without use or 30 in total end it). Scripts send
 `Authorization: Bearer <key>`.
 `users set-password`, `users deactivate`, `api-keys list` and `api-keys revoke` do the rest; `--help`
 explains each one. Ten wrong passwords in a row pause an account's sign-in for a minute per attempt.
+{%- if email == 'smtp' %}
+A forgotten password is reset with a one-time code sent by email (`POST /api/auth/password-reset`, then
+`/api/auth/password-reset/confirm`); the code works once, for an hour, and resetting ends every session.{% endif %}
 {%- elif auth == 'oidc' %}
 
 ## Sign-in
@@ -83,7 +89,12 @@ None of them is needed to develop locally.
 **pooled** one (host with `-pooler`).
 {%- endif %}
 
-**Logfire.** Create a project at https://logfire.pydantic.dev. Create a **write token** (Settings →
+{% if email == 'smtp' %}**Email (SMTP).** Pick a provider that offers SMTP (Resend, Postmark, Amazon SES, Brevo…), verify your
+sending domain there, and set on the API's platform `{{ env_prefix }}SMTP_HOST`, `{{ env_prefix }}SMTP_PORT` (587),
+`{{ env_prefix }}SMTP_SECURITY` (`starttls`), `{{ env_prefix }}SMTP_USERNAME`, `{{ env_prefix }}SMTP_PASSWORD` and `{{ env_prefix }}EMAIL_FROM`. Check
+them from `backend/` with those variables set: `uv run {{ project_slug }} send-test-email --to you@example.com`.
+
+{% endif %}**Logfire.** Create a project at https://logfire.pydantic.dev. Create a **write token** (Settings →
 Write tokens) for the API's `LOGFIRE_TOKEN`, and a **read token** (Settings → Read tokens) for
 `{{ project_slug }} obs status`: save it in `~/.config/{{ project_slug }}/logfire-read-token` or export it as `LOGFIRE_READ_TOKEN`.
 {%- if with_frontend %} For browser errors,

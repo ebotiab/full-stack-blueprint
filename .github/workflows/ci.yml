@@ -39,17 +39,18 @@ jobs:
             data: ""
           # A mid-length name: lines just over 100 characters that fit once wrapped are the ones
           # ruff format rewrites. The name-lengths job below checks every length with ruff alone.
-          # Also sign-in (auth=sessions) on a long-running server.
+          # Also sign-in (auth=sessions) with password reset by email, on a long-running server.
           - name: railway + ty, mid-length name
             data: >-
-              --data api_deploy=railway --data type_checker=ty --data auth=sessions
+              --data api_deploy=railway --data type_checker=ty --data auth=sessions --data email=smtp
               --data "project_name=Medium Name Check"
           # The longest name copier.yml accepts: a 58-character package, whose test database
           # (`<package>_test`) is exactly PostgreSQL's 63-byte limit.
-          # Also sign-in through an OIDC provider, with a database.
+          # Also sign-in through an OIDC provider and email without password reset, with a database.
           - name: fastapi_cloud, API only, longest name
             data: >-
               --data api_deploy=fastapi_cloud --data with_frontend=false --data auth=oidc
+              --data email=smtp
               --data "project_name=Very Long Project Name For Formatting Checks Up To The Cap"
           # Also OIDC sign-in without a database (the user comes from the claims alone).
           - name: vercel + ty, no database

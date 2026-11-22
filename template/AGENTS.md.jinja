@@ -20,8 +20,11 @@ answers and is only changed by `copier update` (see "Template updates").
   - `src/{{ package_name }}/auth/`: sign-in through an OIDC provider. Token verification against its keys (`verify.py`), the `CurrentUser` dependency (`deps.py`){% if with_database %}, the `users` table (`0002_oidc_users.sql`, `users.py`){% endif %} and `/api/auth/me`. The package docstring lists its invariants.
 {%- endif %}
   - `src/{{ package_name }}/settings.py`: configuration from environment variables prefixed `{{ env_prefix }}`; defaults work locally.
+{%- if email == 'smtp' %}
+  - `src/{{ package_name }}/mail.py`: outgoing email through SMTP (Mailpit locally); routes send in a background task with `deliver`.
+{%- endif %}
   - `src/{{ package_name }}/observability.py`: Logfire set-up and the deployed commit. `obs.py`: production status from traces.
-  - `src/{{ package_name }}/cli.py`: the `{{ project_slug }}` command ({% if with_database %}`migrate`, {% endif %}{% if auth == 'sessions' %}`users`, `api-keys`, {% endif %}`openapi`, `obs status`).
+  - `src/{{ package_name }}/cli.py`: the `{{ project_slug }}` command ({% if with_database %}`migrate`, {% endif %}{% if auth == 'sessions' %}`users`, `api-keys`, {% endif %}{% if email == 'smtp' %}`send-test-email`, {% endif %}`openapi`, `obs status`).
   - `openapi.json`: the API contract, generated (`make types`). Committed.
   - `tests/`: pytest{% if with_database %}; the integration tests use a real PostgreSQL database{% endif %}.
 {%- if with_frontend %}
@@ -36,7 +39,7 @@ answers and is only changed by `copier update` (see "Template updates").
 {%- endif %}
 - `Makefile`: one target per task (below). `scripts/`: what the Makefile runs (`doctor.sh`, `steps.sh`).
 {%- if with_database %}
-- `docker-compose.yml`: the local PostgreSQL 18 on port {{ postgres_port }}.
+- `docker-compose.yml`: the local PostgreSQL 18 on port {{ postgres_port }}{% if email == 'smtp' %} and Mailpit (SMTP on 1025, its page on http://localhost:8025){% endif %}.
 {%- endif %}
 - `.github/workflows/ci.yml`: the CI; `.github/scripts/what-changed.sh` decides which half a pull request can affect. `make check` audits the workflows with zizmor: keep `persist-credentials: false` on checkouts and pinned actions.{% if type_checker == 'pyright' %} Its `ty preview` job is informational: it never fails.{% endif %} `.github/dependabot.yml`: weekly grouped dependency updates.
 {%- if api_deploy == 'render' %}
@@ -139,12 +142,20 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   never goes in JSON, tokens are stored hashed, no GET changes state, a cookie request that
   changes state passes `check_same_origin`. `0002_auth.sql` never changes: extend the tables in a
   new migration. Accounts are created with the CLI (`users create`); there is no sign-up route.
+{%- if email == 'smtp' %} A forgotten password is
+  reset with an emailed one-time code (`auth/resets.py`, `/api/auth/password-reset`).{% endif %}
 {%- elif auth == 'oidc' %}
 - **Sign-in.** The OIDC provider owns the accounts; the API only verifies its tokens. Protect a
   route with a `user: CurrentUser` parameter from `auth/deps.py`: 401 without a valid token, 503
   while `{{ env_prefix }}AUTH_ISSUER` is unset. Keep the invariants in `auth/__init__.py`, which
   `tests/test_auth.py` checks offline with a fake provider: asymmetric algorithms only, issuer and
   expiry always checked, cached keys.{% if with_database %} Users are keyed by `(issuer, subject)`, never by email.{% endif %}
+{%- endif %}
+{%- if email == 'smtp' %}
+- **Email.** Build messages with `mail.message` and send them from a route with
+  `background.add_task(deliver, mailer, msg)` (a `MailerDep` parameter): never await the SMTP server
+  in the request. Locally everything goes to Mailpit; tests override `get_mailer` and read what
+  would have been sent. Never log a message's body or recipient: it may hold a code.
 {%- endif %}
 - **Configuration.** New settings go in `settings.py` with a local default and the `{{ env_prefix }}` prefix,
   and in `backend/.env.example`. Secrets never enter the repository; everything runs locally without credentials.

@@ -1,0 +1,79 @@
+"""Outgoing email without a mail server: smtplib is replaced by a recorder."""
+
+import smtplib
+from email.message import EmailMessage
+from typing import Any, Self
+
+import pytest
+from typer.testing import CliRunner
+
+from {{ package_name }}.cli import app as cli
+from {{ package_name }}.mail import (
+    SmtpMailer,
+    deliver,
+    message,
+)
+from {{ package_name }}.settings import Settings
+
+
+class RecordingSMTP:
+    """Records what the mailer asks of the SMTP server."""
+
+    calls: list[tuple[str, Any]]
+
+    def __init__(self, host: str, port: int, **kwargs: Any) -> None:
+        RecordingSMTP.calls = [("connect", (host, port))]
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        RecordingSMTP.calls.append(("quit", None))
+
+    def starttls(self, **kwargs: Any) -> None:
+        RecordingSMTP.calls.append(("starttls", None))
+
+    def login(self, user: str, password: str) -> None:
+        RecordingSMTP.calls.append(("login", user))
+
+    def send_message(self, msg: EmailMessage) -> None:
+        RecordingSMTP.calls.append(("send", msg["To"]))
+
+
+@pytest.fixture(autouse=True)
+def recording_smtp(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(smtplib, "SMTP", RecordingSMTP)
+    monkeypatch.setattr(smtplib, "SMTP_SSL", RecordingSMTP)
+
+
+async def test_mailpit_needs_no_tls_and_no_login() -> None:
+    await SmtpMailer(Settings()).send(message("ada@example.com", "Hi", "Hello"))
+    assert [name for name, _ in RecordingSMTP.calls] == ["connect", "send", "quit"]
+    assert RecordingSMTP.calls[0] == ("connect", ("localhost", 1025))
+
+
+async def test_a_provider_gets_starttls_and_a_login() -> None:
+    settings = Settings(
+        smtp_host="smtp.example.com",
+        smtp_port=587,
+        smtp_security="starttls",
+        smtp_username="apikey",
+        smtp_password="secret-for-the-test",
+    )
+    await SmtpMailer(settings).send(message("ada@example.com", "Hi", "Hello"))
+    names = [name for name, _ in RecordingSMTP.calls]
+    assert names == ["connect", "starttls", "login", "send", "quit"]
+
+
+async def test_a_failed_delivery_is_logged_not_raised() -> None:
+    class Down:
+        async def send(self, message: EmailMessage) -> None:
+            raise ConnectionRefusedError
+
+    await deliver(Down(), message("ada@example.com", "Hi", "Hello"))
+
+
+def test_the_cli_sends_a_test_email() -> None:
+    result = CliRunner().invoke(cli, ["send-test-email", "--to", "ada@example.com"])
+    assert result.exit_code == 0, result.output
+    assert ("send", "ada@example.com") in RecordingSMTP.calls

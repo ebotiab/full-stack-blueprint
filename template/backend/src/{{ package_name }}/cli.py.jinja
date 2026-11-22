@@ -1,4 +1,4 @@
-"""`{{ project_slug }}` command line: database migrations,{% if auth == 'sessions' %} accounts, API keys,{% endif %} OpenAPI schema and production status."""
+"""`{{ project_slug }}` command line: database migrations,{% if auth == 'sessions' %} accounts, API keys,{% endif %}{% if email == 'smtp' %} test email,{% endif %} OpenAPI schema and production status."""
 
 {% if with_database -%}
 import asyncio
@@ -50,6 +50,25 @@ def migrate() -> None:
 
     applied = _with_connection(run_migrations)
     typer.echo(f"Applied: {', '.join(applied)}" if applied else "Database is up to date.")
+{%- endif %}
+{%- if email == 'smtp' %}
+
+
+@app.command("send-test-email")
+def send_test_email(to: Annotated[str, typer.Option(help="Where to send it.")]) -> None:
+    """Send a test email through the configured SMTP server: checks the `SMTP_*` settings."""
+    import smtplib
+
+    from .mail import SmtpMailer, message
+    from .settings import get_settings
+
+    text = "If you can read this, the API can send email."
+    try:
+        asyncio.run(SmtpMailer(get_settings()).send(message(to, "Test email", text)))
+    except (OSError, smtplib.SMTPException) as error:
+        typer.echo(f"Could not send: {error}", err=True)
+        raise typer.Exit(1) from None
+    typer.echo(f"Sent a test email to {to}.")
 {%- endif %}
 {%- if auth == 'sessions' %}
 

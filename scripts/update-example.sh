@@ -15,6 +15,9 @@ if [ $# -lt 1 ]; then
 fi
 project=$1
 ref=${2:-HEAD}
+# The example takes every default answer except one: it shows the optional sign-in, which projects
+# do not get by default. Passed on every update so that the answer cannot drift.
+example_data=(--data auth=sessions)
 
 cd "$project"
 if [ -n "$(git status --porcelain)" ]; then
@@ -22,8 +25,8 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 2
 fi
 
-echo "==> copier update --defaults --vcs-ref=$ref"
-copier update --defaults --vcs-ref="$ref"
+echo "==> copier update --defaults --vcs-ref=$ref ${example_data[*]}"
+copier update --defaults --vcs-ref="$ref" "${example_data[@]}"
 
 # Copier leaves a conflict as inline markers or as a .rej file. Nobody edits the example by hand,
 # so either one means the update needs a person.

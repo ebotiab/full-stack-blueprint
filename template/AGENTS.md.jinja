@@ -31,7 +31,7 @@ answers and is only changed by `copier update` (see "Template updates").
 - `frontend/`: the visor. Vite, React, TypeScript, oxlint (with type-aware rules), oxfmt, Vitest, Playwright.
   - `src/api/client.ts`: the typed API client (`openapi-fetch`). `src/api/schema.d.ts` is generated from `backend/openapi.json`: never edit it.
 {%- if auth == 'sessions' %}
-  - `src/RequireSignIn.tsx`: the sign-in form, shown until `/api/auth/me` answers with a user; then `App`. The session cookie is HttpOnly: the visor never sees a token and never stores one.
+  - `src/RequireSignIn.tsx`: the sign-in form, shown until `/api/auth/me` answers with a user; then `App`. The session cookie is HttpOnly: the visor never sees a token and never stores one.{% if email == 'smtp' %} Its "Forgot your password?" opens `src/PasswordReset.tsx` (emailed code, then a new password).{% endif %}
 {%- elif auth == 'oidc' %}
   - `src/RequireSignIn.tsx`: sign-in at the OIDC provider (code flow with PKCE, `oidc-client-ts`), then `App`; an `openapi-fetch` middleware adds the access token to every `/api` request. Settings `VITE_OIDC_*` (`frontend/.env.example`).
 {%- endif %}

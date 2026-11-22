@@ -5,16 +5,27 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { api } from './api/client'
 import type { components } from './api/schema'
+{%- if email == 'smtp' %}
+import { PasswordReset } from './PasswordReset'
+{%- endif %}
 
 type User = components['schemas']['User']
 
 type State =
   | { status: 'loading' }
   | { status: 'error' }
+{%- if email == 'smtp' %}
+  | { status: 'signed-out'; notice?: string }
+  | { status: 'resetting' }
+{%- else %}
   | { status: 'signed-out' }
+{%- endif %}
   | { status: 'signed-in'; user: User }
 
 const UNAVAILABLE = 'The API is not responding. Try again later.'
+{%- if email == 'smtp' %}
+const CHANGED = 'Password changed: sign in with the new one.'
+{%- endif %}
 
 export function RequireSignIn({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>({ status: 'loading' })
@@ -61,9 +72,25 @@ export function RequireSignIn({ children }: { children: ReactNode }) {
       <h1>{document.title}</h1>
       {state.status === 'loading' && <p>Loading…</p>}
       {state.status === 'error' && <p role="alert">{UNAVAILABLE}</p>}
+{%- if email == 'smtp' %}
+      {state.status === 'signed-out' && (
+        <SignInForm
+          notice={state.notice}
+          onSignedIn={(user) => setState({ status: 'signed-in', user })}
+          onForgot={() => setState({ status: 'resetting' })}
+        />
+      )}
+      {state.status === 'resetting' && (
+        <PasswordReset
+          onDone={() => setState({ status: 'signed-out', notice: CHANGED })}
+          onCancel={() => setState({ status: 'signed-out' })}
+        />
+      )}
+{%- else %}
       {state.status === 'signed-out' && (
         <SignInForm onSignedIn={(user) => setState({ status: 'signed-in', user })} />
       )}
+{%- endif %}
     </main>
   )
 }
@@ -74,7 +101,13 @@ const PROBLEMS: Record<number, string> = {
   429: 'Too many attempts. Try again in a minute.',
 }
 
+{% if email == 'smtp' -%}
+type SignInProps = { onSignedIn: (user: User) => void; onForgot: () => void; notice?: string }
+
+function SignInForm({ onSignedIn, onForgot, notice }: SignInProps) {
+{%- else -%}
 function SignInForm({ onSignedIn }: { onSignedIn: (user: User) => void }) {
+{%- endif %}
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
@@ -98,6 +131,9 @@ function SignInForm({ onSignedIn }: { onSignedIn: (user: User) => void }) {
 
   return (
     <form aria-label="Sign in" onSubmit={submit}>
+{%- if email == 'smtp' %}
+      {notice && <output>{notice}</output>}
+{%- endif %}
       <label>
         Email
         <input
@@ -122,6 +158,11 @@ function SignInForm({ onSignedIn }: { onSignedIn: (user: User) => void }) {
       <button type="submit" disabled={busy}>
         Sign in
       </button>
+{%- if email == 'smtp' %}
+      <button type="button" onClick={onForgot}>
+        Forgot your password?
+      </button>
+{%- endif %}
     </form>
   )
 }

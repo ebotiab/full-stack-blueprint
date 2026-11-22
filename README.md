@@ -389,6 +389,8 @@ SES, Brevo…), so no provider SDK and no lock-in:
   (8 characters, stored as a hash, valid for an hour, three emails per account then one every ten
   minutes) and answers the same whether or not the account exists; `/confirm` sets the new password
   and ends every session. Each guess spends the account's password attempts.
+- **Visor** (with `auth=sessions`): "Forgot your password?" on the sign-in form asks for the
+  code, then the new password; Playwright tests cover both steps.
 - **Tests** replace the mailer (no SMTP server needed) and `smtplib` itself.
 
 </details>

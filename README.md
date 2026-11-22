@@ -16,8 +16,9 @@ FastAPI · PostgreSQL · React · TypeScript, with tests, CI and deploy config i
 > [!TIP]
 > **See the result before you start.**
 > [**full-stack-blueprint-example**](https://github.com/ebotiab/full-stack-blueprint-example) is a
-> project generated from this template with every default answer, and regenerated after every
-> change here. Browse its code, its README and its passing CI to see exactly what you will get.
+> project generated from this template with every default answer except one, `auth=sessions`, so
+> that it also shows the optional sign-in. It is regenerated after every change here. Browse its
+> code, its README and its passing CI to see exactly what you will get.
 
 ## At a glance
 
@@ -515,7 +516,8 @@ Agents working on the template read [AGENTS.md](AGENTS.md).
 
 The example project follows `main`: after every push that changes what the template generates,
 `.github/workflows/update-example.yml` runs `scripts/update-example.sh` on a checkout of the
-example and opens a pull request there, which merges itself when the example's CI passes. It
+example and opens a pull request there, which merges itself when the example's CI passes. The
+script also passes the example's one non-default answer (`auth=sessions`). It
 needs the secret `EXAMPLE_REPO_TOKEN` (the workflow's first comment says which token).
 
 ## License

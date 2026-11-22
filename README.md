@@ -125,10 +125,10 @@ my-app/
   pydantic-settings, a Typer CLI (`migrate`, `openapi`, `obs status`), Logfire (works without a
   token), pytest against a real PostgreSQL, ruff, and pyright or ty. Optional sign-in
   (`auth: sessions`): accounts, session cookies and API keys in PostgreSQL, with pwdlib (Argon2id).
-- **Visor** (`frontend/`, optional): Vite 8, React 19, TypeScript 7, a client typed from the API's
-  OpenAPI schema (`openapi-typescript` + `openapi-fetch`), oxlint with type-aware rules, oxfmt
-  (exact version), Vitest,
-  Playwright, `@pydantic/logfire-browser` and Vercel Web Analytics.
+- **Visor** (`frontend/`, optional): Vite 8, React 19, TypeScript 7, plain CSS or Tailwind CSS 4,
+  a client typed from the API's OpenAPI schema (`openapi-typescript` + `openapi-fetch`), oxlint
+  with type-aware rules, oxfmt (exact version), Vitest, Playwright, `@pydantic/logfire-browser` and
+  Vercel Web Analytics.
 - **Database** (optional): PostgreSQL 18 in docker-compose for development; Neon in production.
 - **Deploy**: the API on Render (default), FastAPI Cloud, Railway or Vercel; the visor on Vercel.
   Only the chosen target's files are generated, in an EU region wherever the platform has one.
@@ -319,6 +319,7 @@ Which answers suit which project: [🧭 Choosing your options](docs/choosing-you
 | `description` | `A FastAPI API with a React visor.` | one sentence |
 | `github_repo` | `your-github-user/<slug>` | `owner/name`; used for links, Logfire and Railway |
 | `with_frontend` | `true` | include the visor |
+| `ui` | `css` | `css`, `tailwind` (Tailwind CSS 4; asked only with a visor) |
 | `with_database` | `true` | include PostgreSQL |
 | `postgres_port` | `5434` | host port of the local PostgreSQL (asked only with a database) |
 | `auth` | `none` | `none`, `sessions` (own accounts in PostgreSQL; needs the database), `oidc` (an external provider's tokens) |

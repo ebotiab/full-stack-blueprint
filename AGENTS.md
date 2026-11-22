@@ -75,7 +75,8 @@ Neon or Logfire without the user's explicit go-ahead.
   usage-based billing. Each is a one-line change in `copier.yml` plus the README section.
   Two versions are held back: Python 3.15 until every deploy target runs it (Vercel's Python
   runtime, FastAPI Cloud) and PostgreSQL 19 until its first minor release and Neon offer it. The
-  same README section lists where each version is written.
+  same README section lists where each version is written. openapi-typescript (maintenance mode)
+  gives way to openapi-typesafe at its 1.0; the README section says how.
 - **Pull requests**: small, one task each, a description with what, why, what to review and which
   checks ran; `gh pr merge --squash --auto` once complete (if the CI already passed, `--auto`
   refuses with "clean status": use `gh pr merge --squash`). Releases are git tags (`vX.Y.Z`):

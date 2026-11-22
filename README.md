@@ -387,7 +387,10 @@ Every project also reads its own `<PREFIX>COMMIT` first. With a visor, `frontend
 deploys it to Vercel; with `vercel`, visor and API share one project and one domain (`/api`), so
 there is no CORS anywhere. API responses carry `Cache-Control: no-store` unless a route sets its
 own, and `frontend/vercel.json` sends `x-vercel-enable-rewrite-caching: 0` for `/api`: Vercel
-projects created since 2026-04-06 otherwise let its CDN cache what a proxied API returns. Railway
+projects created since 2026-04-06 otherwise let its CDN cache what a proxied API returns. Its
+`routes` rule also adds `x-origin-secret`, from the Vercel variable `ORIGIN_SECRET`, to every
+proxied request: with the same value in `<PREFIX>ORIGIN_SECRET`, the API refuses /api requests that
+skip Vercel. Both are optional and go together. Railway
 uses `.railway/railway.ts` (Infrastructure as Code) because its `railway.json`/`railway.toml`
 format is deprecated and stops being read on 2026-12-01.
 

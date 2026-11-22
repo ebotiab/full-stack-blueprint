@@ -39,12 +39,12 @@ jobs:
             data: ""
           # A mid-length name: lines just over 100 characters that fit once wrapped are the ones
           # ruff format rewrites. The name-lengths job below checks every length with ruff alone.
-          # Also sign-in (auth=sessions) with password reset by email, and background jobs run by
-          # the API process, on a long-running server.
+          # Also sign-in (auth=sessions) with password reset by email, background jobs run by the
+          # API process, on a long-running server, and the visor styled with Tailwind.
           - name: railway + ty, mid-length name
             data: >-
               --data api_deploy=railway --data type_checker=ty --data auth=sessions --data email=smtp
-              --data jobs=postgres
+              --data jobs=postgres --data ui=tailwind
               --data "project_name=Medium Name Check"
           # The longest name copier.yml accepts: a 58-character package, whose test database
           # (`<package>_test`) is exactly PostgreSQL's 63-byte limit.

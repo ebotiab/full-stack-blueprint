@@ -73,6 +73,19 @@ client typed from its OpenAPI schema. **Default: `true`.**
 
 Without it you skip Node, npm and a Vercel project. The API is the same either way.
 
+#### 🎨 `ui`: how the visor is styled (only with the visor)
+
+| | 📄 `css` (default) | 🌬️ `tailwind` |
+| --- | --- | --- |
+| **What you get** | One small stylesheet, `src/index.css` | Tailwind CSS 4 through its Vite plugin; no config file |
+| **How you style** | CSS rules for elements and classes | Utility classes in `className` (`flex gap-4 text-sm`), dark mode with `dark:` |
+| **Best for** | Data visors and internal pages with little design | Apps whose UI will grow: consistent spacing and colors, and agents write it fluently |
+| **Keep in mind** | Grows harder to keep consistent as screens multiply | One more dev dependency; long class lists if you dislike them |
+
+With `tailwind`, the generated pages keep their markup and get their look from a few base rules in
+`src/index.css`; new components use utility classes. Ready components (shadcn/ui) come later,
+from its CLI, if the project wants them.
+
 ### 🐘 `with_database`: PostgreSQL
 
 PostgreSQL 18 in Docker on your machine and Neon in production, with asyncpg, plain SQL and

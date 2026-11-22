@@ -4,7 +4,7 @@
 
 - **API**: FastAPI on Python 3.14{% if with_database %}, PostgreSQL through asyncpg with plain SQL migrations{% endif %}, traces in Logfire.
 {%- if with_frontend %}
-- **Visor**: Vite + React + TypeScript, calling the API through a client typed from its OpenAPI schema.
+- **Visor**: Vite + React + TypeScript{% if ui == 'tailwind' %} + Tailwind CSS 4{% endif %}, calling the API through a client typed from its OpenAPI schema.
 {%- endif %}
 - **Deploy**: {% if api_deploy == 'render' %}the API on Render{% elif api_deploy == 'railway' %}the API on Railway{% elif api_deploy == 'fastapi_cloud' %}the API on FastAPI Cloud{% else %}{% if with_frontend %}visor and API together on Vercel{% else %}the API on Vercel{% endif %}{% endif %}{% if with_frontend and api_deploy != 'vercel' %}, the visor on Vercel{% endif %}{% if with_database %}, the database on Neon{% endif %}.
 

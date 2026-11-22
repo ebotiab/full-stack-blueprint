@@ -174,7 +174,7 @@ Every question has a default ([see them all](#options-and-defaults)). These are 
 | `project_name` | `Bus Stops` | The readable name. The short names come from it: `bus-stops` for the repository and commands, `bus_stops` for the Python package. |
 | `github_repo` | `your-user/bus-stops` | The repository you create in step 4. It does not need to exist yet. |
 | `with_frontend`, `with_database` | `true` | Keep both unless you want an API without a visor or without PostgreSQL. |
-| `auth`, `email` | `none` | Sign-in (`sessions`: your own accounts; `oidc`: an identity provider) and outgoing email (`smtp`). |
+| `auth`, `email`, `jobs` | `none` | Sign-in (`sessions`: your own accounts; `oidc`: an identity provider), outgoing email (`smtp`) and background jobs (`postgres`). |
 | `api_deploy` | `render` | Where the API runs in production. |
 
 > [!TIP]
@@ -323,6 +323,7 @@ Which answers suit which project: [🧭 Choosing your options](docs/choosing-you
 | `postgres_port` | `5434` | host port of the local PostgreSQL (asked only with a database) |
 | `auth` | `none` | `none`, `sessions` (own accounts in PostgreSQL; needs the database), `oidc` (an external provider's tokens) |
 | `email` | `none` | `none`, `smtp` (any provider; Mailpit locally; password reset with `sessions`; needs the database) |
+| `jobs` | `none` | `none`, `postgres` (queued and periodic background jobs in PostgreSQL; needs the database) |
 | `type_checker` | `pyright` | `pyright`, `ty` |
 | `api_deploy` | `render` | `render`, `fastapi_cloud`, `railway`, `vercel` |
 | `api_public_url` | the platform's usual URL | where the visor's `vercel.json` proxies `/api` (asked only with a visor and a non-Vercel API) |
@@ -404,6 +405,30 @@ SES, Brevo…), so no provider SDK and no lock-in:
 </details>
 
 <details>
+<summary><b>What <code>jobs: postgres</code> adds</b></summary>
+
+Background work kept in the project's PostgreSQL, with no queue service (no Redis), in about 200
+lines of plain SQL under `backend/src/<package>/jobs/`:
+
+- **Queued jobs**: `queue.enqueue(conn, "task", {...})` inside the route's transaction (if the
+  change rolls back, the job is never queued), then `run_soon` starts it right after the response.
+  Workers claim jobs with `FOR UPDATE SKIP LOCKED` and a 5-minute lease (a dead worker's job runs
+  again); failures retry five times with doubling delays, then stay for `jobs failed` / `jobs retry`.
+- **Periodic tasks**: `Every(minutes=…)` or `Daily(at=…)` (UTC), queued once per period however
+  many instances or ticks there are.
+- **Who runs them**: the API process itself (`JOBS_IN_PROCESS`), `jobs work` as a dedicated
+  worker, and `/api/jobs/tick` (with `CRON_SECRET`) for a scheduler. Railway keeps the API running,
+  so the API does it all; on Render, FastAPI Cloud and Vercel, which put an idle API to sleep or
+  run it as functions, `.github/workflows/jobs-tick.yml` calls the tick every 10 minutes for free.
+- **Tests** against the real PostgreSQL: retries, leases, concurrent workers, one run per period,
+  the tick and the CLI.
+
+Delivery is at least once, so tasks must be safe to repeat. Long jobs (beyond a few minutes) want a
+dedicated worker, which costs money on every target.
+
+</details>
+
+<details>
 <summary><b>What each deploy target generates</b></summary>
 
 | `api_deploy` | Files | Migrations run | Deployed commit read from |
@@ -479,6 +504,8 @@ For every project:
 - **GitHub**: protect `main` with the required checks `Backend` and `Frontend`, and allow auto-merge.
 - **Email** (with `email: smtp`): an SMTP provider with your sending domain verified, and its
   `SMTP_*` settings plus `EMAIL_FROM` (with the project's prefix) on the API's platform.
+- **Background jobs** (with `jobs: postgres`, except on Railway): a `CRON_SECRET` on the API's
+  platform and in GitHub, and the repository variable `API_URL`, for `jobs-tick.yml`.
 
 Then the steps for your target:
 

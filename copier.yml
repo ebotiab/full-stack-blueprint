@@ -153,6 +153,20 @@ email:
     {% if email == 'smtp' and not with_database %}email=smtp runs Mailpit in the database's
     docker-compose for local development: it needs with_database=true.{% endif %}
 
+# Background work kept in PostgreSQL: jobs queued from routes (in the same transaction as the
+# change that needs them), retried with backoff, and periodic tasks. No queue service: the API
+# process, `jobs run` or a scheduled tick runs them (backend/src/<package>/jobs/).
+jobs:
+  type: str
+  help: Background jobs and periodic tasks, kept in PostgreSQL.
+  default: none
+  choices:
+    "None": none
+    "PostgreSQL: queued and periodic jobs with retries, no extra service (needs the database)": postgres
+  validator: >-
+    {% if jobs == 'postgres' and not with_database %}jobs=postgres keeps the jobs in PostgreSQL: it
+    needs with_database=true.{% endif %}
+
 # Python type checker. pyright is the default because it is stable and matches Pylance (VS Code).
 # ty (Astral) is faster and is the planned default once it reaches a stable 1.0 release: when that
 # happens, change `default: pyright` to `default: ty` below (one line) and update the README

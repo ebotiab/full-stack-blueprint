@@ -1,10 +1,13 @@
 """The {{ project_name }} API. Every route lives under /api, so the visor and the API can share a domain."""
 
+{% if jobs == 'postgres' -%}
+import asyncio
+{% endif -%}
 {% if with_frontend and api_deploy != 'vercel' -%}
 import hmac
 {% endif -%}
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager{% if jobs == 'postgres' %}, suppress{% endif %}
 
 import logfire
 from fastapi import FastAPI, Request, Response
@@ -20,6 +23,10 @@ from ..auth import routes as auth_routes
 {%- if with_database %}
 from ..db.migrate import migrate
 from ..db.pool import Database, connect
+{%- endif %}
+{%- if jobs == 'postgres' %}
+from ..jobs import queue as jobs_queue
+from ..jobs import routes as jobs_routes
 {%- endif %}
 from ..observability import configure_logfire, instrument_api
 from ..settings import get_settings
@@ -37,12 +44,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         logfire.info("migrations applied at start-up: {applied}", applied=applied)
     await database.pool()
 {%- endif %}
+{%- if jobs == 'postgres' %}
+    worker: asyncio.Task[None] | None = None
+    if settings.jobs_in_process:
+        worker = asyncio.create_task(jobs_queue.run_forever(database))
+{%- endif %}
     # One record per start: tells from when this version serves, even if nobody called it yet.
     logfire.info("api started")
 {%- if with_database %}
     try:
         yield
     finally:
+{%- if jobs == 'postgres' %}
+        if worker is not None:
+            worker.cancel()
+            with suppress(asyncio.CancelledError):
+                await worker
+{%- endif %}
         await database.close()
 {%- else %}
     yield
@@ -72,7 +90,13 @@ async def only_through_vercel(request: Request, call_next: RequestResponseEndpoi
     """
     secret = get_settings().origin_secret
     path = request.url.path
+{%- if jobs == 'postgres' %}
+    # The tick has its own secret: a scheduler calls the API directly.
+    open_paths = ("/api/healthz", "/api/jobs/tick")
+    if secret and path.startswith("/api/") and path not in open_paths:
+{%- else %}
     if secret and path.startswith("/api/") and path != "/api/healthz":
+{%- endif %}
         given = request.headers.get("x-origin-secret", "")
         if not hmac.compare_digest(given.encode(), secret.encode()):
             return JSONResponse({"detail": "Use the API through the visor's domain."}, 403)
@@ -104,6 +128,9 @@ def create_app() -> FastAPI:
     app.include_router(routes.router, prefix="/api")
 {%- if auth != 'none' %}
     app.include_router(auth_routes.router, prefix="/api")
+{%- endif %}
+{%- if jobs == 'postgres' %}
+    app.include_router(jobs_routes.router, prefix="/api")
 {%- endif %}
     return app
 

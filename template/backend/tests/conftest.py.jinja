@@ -46,6 +46,10 @@ def app_settings(db_url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]
     """Point the app at the test database, migrating it at start-up, for the duration of a test."""
     monkeypatch.setenv(f"{PREFIX}DATABASE_URL", db_url)
     monkeypatch.setenv(f"{PREFIX}MIGRATE_ON_START", "true")
+{%- if jobs == 'postgres' %}
+    # No worker loop in tests: they run the jobs themselves, when they want.
+    monkeypatch.setenv(f"{PREFIX}JOBS_IN_PROCESS", "false")
+{%- endif %}
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

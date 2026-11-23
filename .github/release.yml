@@ -1,0 +1,7 @@
+# What GitHub lists in a release's notes (.github/workflows/release.yml): every pull request merged
+# since the previous version, except Dependabot's updates of this repository's own CI, which no
+# generated project sees. Dependabot labels its pull requests `dependencies`.
+changelog:
+  exclude:
+    labels:
+      - dependencies

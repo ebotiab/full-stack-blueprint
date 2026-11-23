@@ -43,11 +43,15 @@ From here the project's own `AGENTS.md` and skills (`ship-a-change`, `change-the
 ## Update an existing project
 
 1. In the project, `git status` must be clean.
-2. `copier update --defaults` (latest tagged template) or `copier update --defaults --vcs-ref=HEAD`
+2. Read the release notes from the project's version (`_commit` in `.copier-answers.yml`) to the
+   latest: `gh release list --repo ebotiab/full-stack-blueprint`, then `gh release view vX.Y.Z`
+   for each. They name any new default the project would take and the `--data` that keeps the old
+   behavior; tell the user before taking one.
+3. `copier update --defaults` (latest tagged template) or `copier update --defaults --vcs-ref=HEAD`
    (latest commit). To change an answer: add `--data key=value`.
-3. Look for conflict markers (`git grep -nE '^(<<<<<<<|>>>>>>>)'`) and `*.rej` files; resolve them
+4. Look for conflict markers (`git grep -nE '^(<<<<<<<|>>>>>>>)'`) and `*.rej` files; resolve them
    keeping the project's own changes.
-4. `make setup && make check`, then open a pull request with the update.
+5. `make setup && make check`, then open a pull request with the update.
 
 ## Manual steps that remain (tell the user; do not do them without their go-ahead)
 

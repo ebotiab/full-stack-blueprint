@@ -34,9 +34,12 @@ Neon or Logfire without the user's explicit go-ahead.
 - `.github/dependabot.yml`: weekly updates of the actions this repository's CI uses.
 - `.github/workflows/ci.yml`: five combinations that cover every value of every option, the
   name-length check and the update check.
-- `.github/workflows/update-example.yml` and `scripts/update-example.sh`: after a push to main
-  that changes what the template generates, update the example project the README links to and
-  open a pull request there. Nothing to do by hand; the workflow's first comment explains its token.
+- `.github/workflows/release.yml` and `.github/release.yml`: at every pushed tag, publish the
+  GitHub Release; its notes open with the tag's message and list the pull requests merged since
+  the previous version.
+- `.github/workflows/update-example.yml` and `scripts/update-example.sh`: at every pushed tag,
+  update the example project the README links to and open a pull request there. Nothing to do by
+  hand; the workflow's first comment explains its token.
 - `.agents/skills/`: this repository's skills (`.claude/skills` links here).
   `.claude/settings.json` turns off Claude Code plugins this repository does not use.
 
@@ -79,5 +82,8 @@ Neon or Logfire without the user's explicit go-ahead.
   gives way to openapi-typesafe at its 1.0; the README section says how.
 - **Pull requests**: small, one task each, a description with what, why, what to review and which
   checks ran; `gh pr merge --squash --auto` once complete (if the CI already passed, `--auto`
-  refuses with "clean status": use `gh pr merge --squash`). Releases are git tags (`vX.Y.Z`):
-  `copier update` takes the latest tag by default.
+  refuses with "clean status": use `gh pr merge --squash`).
+- **Releases** are annotated git tags (`vX.Y.Z`) on main, pushed after the merge: `copier update`
+  takes the latest one by default, and the push publishes the release notes and updates the
+  example. The tag's message opens the notes: one or two sentences on what changes for a project
+  that updates, naming any new default it would take and the `--data` that keeps the old behavior.

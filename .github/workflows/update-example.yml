@@ -1,7 +1,8 @@
-# Keeps the example project (the one the README links to) generated from the latest commit of this
-# template. After every push to main that changes what the template generates, it updates a
-# checkout of the example with scripts/update-example.sh and opens a pull request there, marked to
-# merge itself when the example's own CI passes.
+# Keeps the example project (the one the README links to) generated from the latest release of
+# this template, which is what `copier update` brings by default. At every release (a pushed tag
+# `vX.Y.Z`), it updates a checkout of the example with scripts/update-example.sh and opens a pull
+# request there, marked to merge itself when the example's own CI passes. Run by hand, it updates
+# the example to the latest release (to retry after a failure, say).
 #
 # It needs one secret, EXAMPLE_REPO_TOKEN: a fine-grained personal access token limited to the
 # example repository, with read and write access to Contents, Pull requests and Workflows. The
@@ -12,18 +13,13 @@ name: Update the example project
 
 on:
   push:
-    branches: [main]
-    paths:
-      - template/**
-      - copier.yml
-      - scripts/update-example.sh
-      - .github/workflows/update-example.yml
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# One update at a time; a newer push replaces the one in progress.
+# One update at a time; a newer release replaces the one in progress.
 concurrency:
   group: update-example
   cancel-in-progress: true
@@ -61,18 +57,42 @@ jobs:
           repository: ${{ env.EXAMPLE_REPO }}
           token: ${{ secrets.EXAMPLE_REPO_TOKEN }}
           path: example
+      # No caches: the job runs once per release and writes to another repository, so a poisoned
+      # cache would cost more than the minute it saves.
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         if: steps.token.outputs.present == 'true'
+        with:
+          enable-cache: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.token.outputs.present == 'true'
         with:
           node-version: 26
+          package-manager-cache: false
       - name: Copier
         if: steps.token.outputs.present == 'true'
         run: uv tool install "copier==9.19.1"
-      - name: Update the example to this commit of the template
+      - name: Which release
+        id: release
         if: steps.token.outputs.present == 'true'
-        run: scripts/update-example.sh example "$GITHUB_SHA"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag=$GITHUB_REF_NAME
+          else
+            tag=$(gh api "repos/$GITHUB_REPOSITORY/tags" --paginate --jq '.[].name' \
+              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          fi
+          if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$tag is not a version tag (vX.Y.Z)."
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Update the example to this release
+        if: steps.token.outputs.present == 'true'
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: scripts/update-example.sh example "$TAG"
       - name: Pull request in the example repository
         if: steps.token.outputs.present == 'true'
         working-directory: example

@@ -1,0 +1,55 @@
+"""The agent, its model and its route, offline: Pydantic AI's test models stand in for a real one."""
+
+import datetime as dt
+from pathlib import Path
+
+import pytest
+from pydantic_ai.exceptions import UserError
+from pydantic_ai.messages import ToolReturnPart
+from pydantic_ai.models.test import TestModel
+
+from {{ package_name }}.agent import assistant, model
+from {{ package_name }}.settings import Settings
+
+#: The provider variables a test removes, so a key on the developer's machine never leaks in.
+PROVIDER_KEYS = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "PYDANTIC_AI_GATEWAY_API_KEY")
+MODEL = "anthropic:claude-opus-5-5"
+
+
+@pytest.fixture
+def no_model_key(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """No provider key in the environment nor in a .env file, all restored after the test."""
+    monkeypatch.chdir(tmp_path)
+    for name in PROVIDER_KEYS:
+        # setenv first records the variable, so whatever the test sets (load_dotenv) is undone.
+        monkeypatch.setenv(name, "")
+        monkeypatch.delenv(name)
+    return tmp_path
+
+
+async def test_the_agent_calls_its_tool() -> None:
+    result = await assistant.agent.run(
+        "What time is it?", model=TestModel(), usage_limits=assistant.LIMITS
+    )
+    returned = [
+        part.tool_name
+        for message in result.all_messages()
+        for part in message.parts
+        if isinstance(part, ToolReturnPart)
+    ]
+    assert "current_time" in returned
+    assert isinstance(result.output, assistant.AgentAnswer)
+
+
+def test_current_time_is_utc() -> None:
+    assert dt.datetime.fromisoformat(assistant.current_time()).utcoffset() == dt.timedelta(0)
+
+
+def test_resolve_model_without_a_key_raises(no_model_key: Path) -> None:
+    with pytest.raises(UserError, match="ANTHROPIC_API_KEY"):
+        model.resolve_model(Settings(ai_model=MODEL))
+
+
+def test_resolve_model_reads_the_key_from_dotenv(no_model_key: Path) -> None:
+    (no_model_key / ".env").write_text("ANTHROPIC_API_KEY=test-key\n", encoding="utf-8")
+    assert model.resolve_model(Settings(ai_model=MODEL)).model_name == "claude-opus-5-5"

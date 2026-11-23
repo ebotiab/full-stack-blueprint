@@ -13,6 +13,11 @@
 # (PostgreSQL, Mailpit) together with its data: the project is throwaway, and a container left
 # running blocks the next run of a combination with the same project name. The project's files
 # stay; `make db-up` in it starts an empty database again (then `make setup` migrates it).
+#
+# The generated docker-compose.yml names its Compose project after the project (`name:`), and every
+# checkout of a real project with that name shares it. This run uses its own, named after the
+# output directory, so the `docker compose down --volumes` at the end never removes a real
+# project's database: COMPOSE_PROJECT_NAME comes before `name:`, and make's commands inherit it.
 set -euo pipefail
 
 if [ $# -lt 1 ]; then
@@ -33,6 +38,8 @@ copier copy --defaults --vcs-ref HEAD "$@" "$template" "$out"
 
 cd "$out"
 project=$(pwd)
+COMPOSE_PROJECT_NAME="fsb-check-$(basename "$project" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_\n-' '-')"
+export COMPOSE_PROJECT_NAME
 stop_docker() {
   if [ -f "$project/docker-compose.yml" ]; then
     echo "==> docker compose down --volumes"

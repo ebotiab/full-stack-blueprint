@@ -13,8 +13,13 @@ API_PORT ?= 8000
 WEB_PORT ?= 5173
 {%- endif %}
 {%- if with_database %}
+# This checkout's local database, in the PostgreSQL every checkout shares (docker-compose.yml):
+# {{ package_name }} in the main checkout, wt_<name> in a git worktree, so that worktrees can run
+# `make setup` and `make check` at the same time (scripts/db-name.sh).
+DB_NAME := $(shell bash scripts/db-name.sh)
+LOCAL_POSTGRES := postgresql://{{ package_name }}:{{ package_name }}@localhost:{{ postgres_port }}
 # pytest's throwaway database (emptied by the tests). The CI sets its own.
-TEST_DATABASE_URL ?= postgresql://{{ package_name }}:{{ package_name }}@localhost:{{ postgres_port }}/{{ package_name }}_test
+TEST_DATABASE_URL ?= $(LOCAL_POSTGRES)/$(DB_NAME)_test
 {%- endif %}
 STEPS := bash scripts/steps.sh
 
@@ -135,12 +140,27 @@ migrate: ## Apply pending SQL migrations to the local database
 	@$(MAKE) db-up
 	@cd backend && uv run {{ project_slug }} migrate
 
-db-up: ## Start the local PostgreSQL{% if email == 'smtp' %} and Mailpit (http://localhost:8025){% endif %} (docker compose) and create the test database
-	@docker compose up -d --wait postgres{% if email == 'smtp' %} mailpit{% endif %}
-	@docker compose exec -T postgres psql -U {{ package_name }} -d {{ package_name }} -tAc \
-		"SELECT 1 FROM pg_database WHERE datname = '{{ package_name }}_test'" | grep -q 1 \
-		|| docker compose exec -T postgres createdb -U {{ package_name }} {{ package_name }}_test
+# Every checkout shares the containers. Two checkouts that start them at the same moment race to
+# create them: the one that loses tries once more and finds them running. Then this checkout's
+# databases, $(DB_NAME) and $(DB_NAME)_test; a git worktree also gets its own DATABASE_URL in
+# backend/.env (git-ignored), unless that file already sets one, for the app and the CLI.
+db-up: ## Start the local PostgreSQL{% if email == 'smtp' %} and Mailpit (http://localhost:8025){% endif %} (docker compose) and create this checkout's databases
+	@docker compose up -d --wait postgres{% if email == 'smtp' %} mailpit{% endif %} \
+		|| docker compose up -d --wait postgres{% if email == 'smtp' %} mailpit{% endif %}
+	@for db in $(DB_NAME) $(DB_NAME)_test; do \
+		docker compose exec -T postgres psql -U {{ package_name }} -d {{ package_name }} -tAc \
+			"SELECT 1 FROM pg_database WHERE datname = '$$db'" | grep -q 1 \
+			|| docker compose exec -T postgres createdb -U {{ package_name }} "$$db"; \
+	done
+ifneq ($(DB_NAME),{{ package_name }})
+	@if ! grep -qsE '^({{ env_prefix }})?DATABASE_URL=' backend/.env; then \
+		{ if [ -s backend/.env ]; then echo; fi; \
+		  echo "# This git worktree's own database (make db-up, scripts/db-name.sh)."; \
+		  echo "{{ env_prefix }}DATABASE_URL=$(LOCAL_POSTGRES)/$(DB_NAME)"; } >> backend/.env; \
+		echo "backend/.env: {{ env_prefix }}DATABASE_URL now points at $(DB_NAME), this worktree's database."; \
+	fi
+endif
 
-db-down: ## Stop the local PostgreSQL{% if email == 'smtp' %} and Mailpit{% endif %} (the data stays in a Docker volume)
+db-down: ## Stop the local PostgreSQL{% if email == 'smtp' %} and Mailpit{% endif %} for every checkout (the data stays in a Docker volume)
 	@docker compose stop postgres{% if email == 'smtp' %} mailpit{% endif %}
 {%- endif %}

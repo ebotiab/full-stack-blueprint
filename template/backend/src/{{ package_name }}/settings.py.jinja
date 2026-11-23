@@ -16,7 +16,8 @@ PREFIX = "{{ env_prefix }}"
     package name: written out in full, ruff format rewraps it for some name lengths. #}
 #: User, password and database name of the docker-compose PostgreSQL (make db-up).
 _LOCAL_DB = "{{ package_name }}"
-#: The docker-compose PostgreSQL.
+#: The docker-compose PostgreSQL. A git worktree has its own database there, which `make db-up`
+#: writes to the worktree's backend/.env (scripts/db-name.sh).
 LOCAL_DATABASE_URL = f"postgresql://{_LOCAL_DB}:{_LOCAL_DB}@localhost:{{ postgres_port }}/{_LOCAL_DB}"
 {%- endif %}
 

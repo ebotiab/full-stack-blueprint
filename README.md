@@ -90,6 +90,7 @@ gives a clear verdict the agent can act on without asking.
 | **Contracts that machines check** | Types on both sides, an OpenAPI schema committed with the code, TypeScript types generated from it and tests against a real PostgreSQL. When any of them drifts the CI fails, so a mistake shows up as a failed check instead of a bug in production. |
 | **Commands that never ask** | Every `make` target runs without prompts and ends with a reliable exit code and a summary of what passed and failed. |
 | **Instructions in the repository** | Each project has an `AGENTS.md` (Claude Code reads it through `CLAUDE.md`; Codex, Cursor and others read it directly) and skills for its usual tasks, such as changing the API or shipping a change. |
+| **Worktrees that run side by side** | Agents often work in several git worktrees of one project at once. They share the project's one local PostgreSQL, each worktree with its own databases, and the browser tests take a free port, so their `make setup` and `make check` runs never collide. |
 | **Production the agent can check** | `obs status` reads the traces in Logfire and tells whether a commit is deployed and serving without errors, so a task ends when production confirms it. |
 
 ## What's inside
@@ -303,6 +304,7 @@ when the CI passes. After that, merging into `main` deploys.
 | --- | --- |
 | `make doctor` reports a problem | Run the fix it prints under the failed line, then run `make doctor` again. |
 | The PostgreSQL port is taken (another project uses 5434) | Generate with another port, such as `--data postgres_port=5544`, or follow the fix `make doctor` prints. |
+| After `copier update`, Docker says the name `<slug>-postgres` is already in use | The container predates the shared Compose project. `make doctor` prints the command that removes it; `make setup` then starts a new local database and migrates it. |
 | Docker is installed but nothing starts | Open Docker Desktop and wait until it says it is running. |
 | uv or npm cannot find a version that exists | The project only installs releases that are at least 7 days old, as a protection against compromised packages. Use a version that is a week old. |
 | `make check` fails | The summary names the step. `make fmt` fixes formatting and `make types` stale API types; for anything else, the output above the summary says what broke. If you work with an agent, give it the summary. |

@@ -56,6 +56,12 @@ if command -v docker >/dev/null 2>&1; then
     else
       ok "port {{ postgres_port }} is available for PostgreSQL"
     fi
+    # Every checkout shares one Compose project, {{ project_slug }} (docker-compose.yml, `name:`). A
+    # container created under another one (named after the folder, before `name:`) is in the way.
+    project=$(docker inspect --format '{{ '{{' }}index .Config.Labels "com.docker.compose.project"{{ '}}' }}' {{ project_slug }}-postgres 2>/dev/null || true)
+    if [ -n "$project" ] && [ "$project" != "{{ project_slug }}" ]; then
+      bad "the container {{ project_slug }}-postgres belongs to the Compose project $project, not {{ project_slug }}" "docker rm -f {{ project_slug }}-postgres{% if email == 'smtp' %} {{ project_slug }}-mailpit{% endif %}  (its data stays in the volume ${project}_postgres18; make setup starts a new database and migrates it)"
+    fi
 {%- if email == 'smtp' %}
     # Mailpit's ports (SMTP and its web page), also free or already ours.
     for port in 1025 8025; do

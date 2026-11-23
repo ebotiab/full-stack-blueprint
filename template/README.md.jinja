@@ -23,6 +23,9 @@ make dev      # API on http://127.0.0.1:8000/api{% if with_frontend %}, visor on
 
 The API documentation is at http://127.0.0.1:8000/docs while `make dev` runs. Nothing needs
 credentials locally: Logfire sends nothing without a token{% if with_database %}, and the database is the local container{% endif %}.
+{%- if agent == 'pydantic_ai' %} The
+agent (`POST /api/agent`) answers 503 until you put a model key in `backend/.env` (`ANTHROPIC_API_KEY`
+for the default model, `{{ env_prefix }}AI_MODEL` to change it).{% endif %}
 Optional local settings: `backend/.env.example`{% if with_frontend %} and `frontend/.env.example`{% endif %}.
 {%- if with_database %}
 Several git worktrees of the project can run `make setup` and `make check` at the same time: they
@@ -167,7 +170,11 @@ come through the visor's domain (`/api/healthz` excepted), so scripts call `http
 Without the Vercel variable, Vercel sends the literal text `$ORIGIN_SECRET`: set both or neither.
 {%- endif %}
 
-**GitHub.** Protect `main`: require pull requests and the checks `Backend` and `Frontend`, and
+{% if agent == 'pydantic_ai' %}**Agent.** Set the model's key on the API's platform: `ANTHROPIC_API_KEY` for the default model, or
+the variable of the provider in `{{ env_prefix }}AI_MODEL`. Until then `/api/agent` answers 503.{% if auth == 'none' %} The route is
+public: set a spending limit at the provider.{% endif %}
+
+{% endif %}**GitHub.** Protect `main`: require pull requests and the checks `Backend` and `Frontend`, and
 allow auto-merge (Settings → General → "Allow auto-merge").
 
 {%- if auth == 'oidc' %}
@@ -190,7 +197,7 @@ and lists any error since.
 ## Skills for coding agents
 
 `.agents/skills/` (also `.claude/skills/`) gives agents the project's own procedures and links to
-the skills that FastAPI, Typer and Logfire ship in their packages, so the guidance matches the
+the skills that FastAPI, Typer{% if agent == 'pydantic_ai' %}, Pydantic AI{% endif %} and Logfire ship in their packages, so the guidance matches the
 installed versions. More skills that fit this project live in other repositories; add the ones you
 want with [`npx skills`](https://github.com/vercel-labs/skills) (it needs Node), which records the
 commit of each in `skills-lock.json` (commit it). `--min-release-age=7` runs a release of the tool

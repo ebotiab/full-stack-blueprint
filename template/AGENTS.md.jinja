@@ -26,6 +26,9 @@ answers and is only changed by `copier update` (see "Template updates").
 {%- if email == 'smtp' %}
   - `src/{{ package_name }}/mail.py`: outgoing email through SMTP (Mailpit locally); routes send in a background task with `deliver`.
 {%- endif %}
+{%- if agent == 'pydantic_ai' %}
+  - `src/{{ package_name }}/agent/`: an LLM agent built with Pydantic AI. The agent, its tools and the limits of one run in `assistant.py`; the model from `{{ env_prefix }}AI_MODEL` in `model.py`; `POST /api/agent` in `routes.py`.
+{%- endif %}
   - `src/{{ package_name }}/observability.py`: Logfire set-up and the deployed commit. `obs.py`: production status from traces.
   - `src/{{ package_name }}/cli.py`: the `{{ project_slug }}` command ({% if with_database %}`migrate`, {% endif %}{% if auth == 'sessions' %}`users`, `api-keys`, {% endif %}{% if email == 'smtp' %}`send-test-email`, {% endif %}{% if jobs == 'postgres' %}`jobs run|work|failed|retry`, {% endif %}`openapi`, `obs status`).
   - `openapi.json`: the API contract, generated (`make types`). Committed.
@@ -63,7 +66,8 @@ answers and is only changed by `copier update` (see "Template updates").
   Vercel (`api/main.py`, `only_through_vercel`). Scripts then call the API at the visor's domain.
 {%- endif %}
 - `.agents/skills/`: skills for agents (`.claude/skills` links here). The project's own procedures
-  (`change-the-api`, `ship-a-change`) are directories; `fastapi`, `typer` and
+  (`change-the-api`, `ship-a-change`) are directories; `fastapi`, `typer`{% if agent == 'pydantic_ai' %},
+  `building-pydantic-ai-agents`, `logfire-evals`, `logfire-gateway`{% endif %} and
   `logfire-instrumentation` are links to the skills those libraries ship in `backend/.venv`, so they
   follow the installed version (`make setup` creates their targets, `make check` checks them). Never
   edit a linked skill. `.vscode/`: editor settings that match the checks.
@@ -184,6 +188,21 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   repeat and short (a lease of 5 minutes); failures retry 5 times, then `jobs failed` lists them.
   {% if api_deploy == 'railway' %}The API process runs the jobs (`JOBS_IN_PROCESS`).{% else %}The API process runs them while awake; `.github/workflows/jobs-tick.yml` calls `/api/jobs/tick` every 10 minutes.{% endif %}
 {%- endif %}
+{%- if agent == 'pydantic_ai' %}
+- **The agent.** Agent code lives in `agent/`: instructions and tools in `assistant.py` (more
+  agents next to it), the model only from `{{ env_prefix }}AI_MODEL` and the provider's own key variable, never
+  a key in code. The agent is built without a model, so the API starts without a key and
+  `/api/agent` answers 503 until one is set. Every run passes `assistant.LIMITS`. Tests never call
+  a real model (`tests/conftest.py` blocks it): use Pydantic AI's `TestModel` or `FunctionModel`,
+  as `tests/test_agent.py` does.
+{%- if auth == 'none' %} Without sign-in the route is public: anyone can spend the model's
+  credits within those limits, and their text reaches the traces unless
+  `{{ env_prefix }}AGENT_TRACE_CONTENT=false`.
+{%- else %} The route needs a signed-in user (`CurrentUser`).
+{%- endif %}
+  The `building-pydantic-ai-agents` skill has the patterns; Logfire is already set up for the
+  agent (`instrument_agent` in `observability.py`).
+{%- endif %}
 - **Configuration.** New settings go in `settings.py` with a local default and the `{{ env_prefix }}` prefix,
   and in `backend/.env.example`. Secrets never enter the repository; everything runs locally without credentials.
 - **Library skills are generic; this file wins.** Where a linked library skill and this file or
@@ -236,6 +255,7 @@ Visor and API are one Vercel project and one domain (`vercel.json`); the API run
 `deploy.yml` migrates with the direct connection string and then deploys.{% endif %}
 {%- endif %}
 {%- if with_database and api_deploy != 'vercel' %} Production PostgreSQL is Neon (EU region).{% endif %} Logfire receives the traces when `LOGFIRE_TOKEN` is set.
+{%- if agent == 'pydantic_ai' %} The agent needs its provider's key on the platform (`ANTHROPIC_API_KEY` for the default model).{% endif %}
 {%- if auth == 'sessions' %} The first administrator is created with the CLI against the production database (README, "Accounts").{% endif %}
 The one-time manual steps (accounts, secrets, variables) are in the README, "Deploy". Never create
 or change cloud services without the user's explicit go-ahead.

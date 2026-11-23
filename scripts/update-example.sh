@@ -16,10 +16,11 @@ if [ $# -lt 1 ]; then
 fi
 project=$1
 ref=${2:-HEAD}
-# The example takes every default answer except one: it shows the optional sign-in, which projects
-# do not get by default. Passed on every update so that the answer cannot drift. ui is passed too:
-# the example recorded `css` before `tailwind` became the default, and a recorded answer wins.
-example_data=(--data auth=sessions --data ui=tailwind)
+# The example takes every default answer except two: it shows the optional sign-in and the agent,
+# which projects do not get by default. Passed on every update so that the answers cannot drift. ui
+# is passed too: the example recorded `css` before `tailwind` became the default, and a recorded
+# answer wins.
+example_data=(--data auth=sessions --data agent=pydantic_ai --data ui=tailwind)
 
 cd "$project"
 if [ -n "$(git status --porcelain)" ]; then

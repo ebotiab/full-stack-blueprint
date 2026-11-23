@@ -20,6 +20,7 @@ changed later with `copier update` (see [Changing your mind](#-changing-your-min
 | 🤖 **An API for scripts, services or partners**, no browser UI | `--data with_frontend=false --data auth=sessions` | API only; callers use API keys you create with the CLI |
 | 📊 **A public API or open data** that anyone can read | `--data with_frontend=false` | API + PostgreSQL, no accounts |
 | ⏱️ **An app that imports, syncs or sends digests on a schedule** | `--data jobs=postgres` | Queued and periodic background jobs in PostgreSQL, with retries |
+| 🧠 **An app with an LLM assistant or agent** | `--data agent=pydantic_ai` | One Pydantic AI agent behind `POST /api/agent`, traced in Logfire, tested offline |
 | 🧮 **A tool that computes but keeps nothing** (calculator, converter, a wrapper around another API) | `--data with_database=false` | Visor + API, no database to run or pay for |
 | 🌍 **A hobby or low-traffic app on a single URL** | `--data api_deploy=vercel` | Visor and API in one Vercel project (serverless) |
 
@@ -51,8 +52,12 @@ flowchart TD
     nomail --> later
     later -- "Yes (needs the database)" --> jobs[jobs: postgres]
     later -- No --> nojobs[jobs: none]
-    jobs --> where{Where should<br/>the API run?}
-    nojobs --> where
+    jobs --> llm{Does the app ask<br/>an LLM to do work?}
+    nojobs --> llm
+    llm -- Yes --> agent[agent: pydantic_ai]
+    llm -- No --> noagent[agent: none]
+    agent --> where{Where should<br/>the API run?}
+    noagent --> where
     where -- "Default: always on, in the EU" --> render[api_deploy: render]
     where -- "One URL with the visor,<br/>serverless" --> vercel[api_deploy: vercel]
     where -- "Pre-deploy migrations,<br/>infrastructure as code" --> railway[api_deploy: railway]
@@ -147,6 +152,20 @@ or by a scheduled call. No Redis, no queue service. **Default: `none`.**
 On Railway the always-on API runs the jobs. On Render, FastAPI Cloud and Vercel a free GitHub
 Actions schedule calls the API every 10 minutes, so periodic tasks run within about 10 minutes of
 their time (queued jobs still start right after the request). It needs the database.
+
+### 🧠 `agent`: an LLM agent
+
+One agent built with Pydantic AI behind `POST /api/agent`, with an example tool, usage limits,
+Logfire traces and offline tests, so the agent code starts from a working base. **Default: `none`.**
+
+| ✅ Choose `pydantic_ai` when | ❌ Leave `none` when |
+| --- | --- |
+| The app asks a model to answer, classify, extract or act with tools | No feature calls a model |
+| You want agent runs traced and tested from the first commit | You will call a model from a script outside the API |
+
+It needs a model provider's key in production (`ANTHROPIC_API_KEY` for the default model); without
+one the route answers 503 and everything else works. Without `auth` the route is public, so set a
+spending limit at the provider. It works with or without the database.
 
 ### 🚀 `api_deploy`: where the API runs
 

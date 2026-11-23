@@ -29,7 +29,8 @@ BACKEND_STEPS := \
 	"Workflows (zizmor)::cd backend && uv run zizmor --offline --no-progress ../.github" \
 	"Python types ({{ type_checker }})::cd backend && uv run {{ 'ty check' if type_checker == 'ty' else 'pyright' }}" \
 	"OpenAPI schema up to date (backend/openapi.json)::$(MAKE) openapi-check" \
-	"Python tests (pytest{{ ' + PostgreSQL' if with_database }})::cd backend && {% if with_database %}{{ env_prefix }}TEST_DATABASE_URL='$(TEST_DATABASE_URL)' {% endif %}uv run pytest"
+	"Python tests (pytest{{ ' + PostgreSQL' if with_database }})::cd backend && {% if with_database %}{{ env_prefix }}TEST_DATABASE_URL='$(TEST_DATABASE_URL)' {% endif %}uv run pytest" \
+	"Library skills resolve (.agents/skills)::bash scripts/check-skills.sh"
 {%- if with_frontend %}
 
 FRONTEND_STEPS := \

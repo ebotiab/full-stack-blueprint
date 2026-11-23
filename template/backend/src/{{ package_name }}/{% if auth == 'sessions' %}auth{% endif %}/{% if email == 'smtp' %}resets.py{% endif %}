@@ -3,11 +3,13 @@
 The code has 8 characters from an alphabet without look-alikes (Crockford's base 32), shown as
 ABCD-EFGH: 40 bits. Each guess spends one of the account's password attempts (limits.py), so it
 cannot be guessed within its hour. A new request replaces the previous code; using it deletes it.
+The code goes to the address on file, never to the text of the request.
 """
 
 import datetime as dt
 import secrets
 from email.message import EmailMessage
+from typing import NamedTuple
 
 import asyncpg
 
@@ -41,13 +43,26 @@ def email_message(to: str, code: str) -> EmailMessage:
     return mail.message(to, "Your password reset code", text)
 
 
-async def create(conn: asyncpg.Connection, email: str) -> str | None:
+async def send_code(mailer: mail.Mailer, to: str, code: str) -> None:
+    """Build and send the reset email: a background task, so that nothing about the message can
+    change the response."""
+    await mail.deliver(mailer, email_message(to, code))
+
+
+class NewCode(NamedTuple):
+    code: str
+    #: The user's address as stored, where the code goes.
+    email: str
+
+
+async def create(conn: asyncpg.Connection, email: str) -> NewCode | None:
     """A new code for the active user with this email, or None when there is no such user."""
-    user_id = await conn.fetchval(
-        "SELECT id FROM users WHERE email = $1 AND is_active", normalize_email(email)
+    user = await conn.fetchrow(
+        "SELECT id, email FROM users WHERE email = $1 AND is_active", normalize_email(email)
     )
-    if user_id is None:
+    if user is None:
         return None
+    user_id = user["id"]
     code = new_code()
     await conn.execute(
         """
@@ -60,7 +75,7 @@ async def create(conn: asyncpg.Connection, email: str) -> str | None:
         tokens.hash_secret(code),
         LIFETIME,
     )
-    return code
+    return NewCode(code, user["email"])
 
 
 async def redeem(conn: asyncpg.Connection, email: str, code: str) -> int | None:

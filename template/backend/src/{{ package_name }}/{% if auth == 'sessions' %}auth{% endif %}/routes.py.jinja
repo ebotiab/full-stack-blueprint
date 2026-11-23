@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from ..api.deps import ConnectionDep
 {%- if email == 'smtp' %}
-from ..mail import MailerDep, deliver
+from ..mail import MailerDep
 from . import limits, passwords, resets, sessions, users
 {%- else %}
 from . import limits, passwords, sessions, users
@@ -116,8 +116,9 @@ async def request_password_reset(
 ) -> None:
     """Email a one-time code to set a new password.
 
-    The answer is the same whether or not the email has an account, and the email leaves after
-    the response, so neither the answer nor its timing tells.
+    The answer is the same whether or not the email has an account, and the email is built and
+    sent after the response, so neither the answer nor its timing tells. The code goes to the
+    address on file: the request's text (spaces, capitals, a line break) never reaches the message.
     """
     check_same_origin(request)
     key = f"reset:{users.normalize_email(body.email)}"
@@ -128,9 +129,9 @@ async def request_password_reset(
             headers={"Retry-After": str(int(resets.REQUESTS_REFILL_SECONDS))},
         )
     await resets.delete_expired(conn)
-    code = await resets.create(conn, body.email)
-    if code is not None:
-        background.add_task(deliver, mailer, resets.email_message(body.email, code))
+    new = await resets.create(conn, body.email)
+    if new is not None:
+        background.add_task(resets.send_code, mailer, new.email, new.code)
 
 
 @router.post("/password-reset/confirm", status_code=status.HTTP_204_NO_CONTENT)

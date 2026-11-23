@@ -414,6 +414,16 @@ async def test_an_unknown_email_gets_the_same_answer_and_no_email(
     assert outbox.sent == []
 
 
+async def test_the_code_goes_to_the_stored_address_whatever_was_typed(
+    http: httpx.AsyncClient, user: users.User, outbox: Outbox
+) -> None:
+    """A line break before the email still finds the account. It must not reach the message: an
+    error there would answer differently for an account than for an unknown email."""
+    assert (await request_reset(http, "\n" + EMAIL.upper())).status_code == 204
+    assert (await request_reset(http, "\nnobody@example.com")).status_code == 204
+    assert [m["To"] for m in outbox.sent] == [EMAIL]
+
+
 async def test_a_wrong_or_expired_code_is_refused(
     http: httpx.AsyncClient, user: users.User, conn: asyncpg.Connection, outbox: Outbox
 ) -> None:

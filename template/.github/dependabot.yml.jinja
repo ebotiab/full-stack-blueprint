@@ -8,7 +8,7 @@
 # uv (`exclude-newer` in backend/pyproject.toml){% if with_frontend %} and npm (`min-release-age` in frontend/.npmrc){% endif %}.
 #
 # Ranges: when the range in backend/pyproject.toml{% if with_frontend %} or frontend/package.json{% endif %} already allows a new
-# release (`>=0.162.5`, `^1.65.0`), Dependabot only updates the lockfile (`increase-if-necessary`).
+# release (`>=0.162.5`{% if with_frontend %}, `^1.65.0`{% endif %}), Dependabot only updates the lockfile (`increase-if-necessary`).
 # The ranges stay as the template wrote them, so `copier update` does not conflict with merged
 # Dependabot updates; a major update still edits its range.
 version: 2

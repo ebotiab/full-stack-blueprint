@@ -26,7 +26,10 @@ Neon or Logfire without the user's explicit go-ahead.
 - `template/`: the generated project (`_subdirectory`). `.jinja` files are rendered; a name such
   as `{% if with_database %}db{% endif %}` makes a file or folder conditional (directories never
   carry the `.jinja` suffix; use single quotes inside names). `template/.claude/skills` is a
-  symlink to `template/.agents/skills` (`_preserve_symlinks`).
+  symlink to `template/.agents/skills` (`_preserve_symlinks`). Next to the project's own skills,
+  `template/.agents/skills/` holds relative symlinks to skills that dependencies ship
+  (`../../backend/.venv/lib/python3.14/site-packages/<package>/.agents/skills/<name>`), broken
+  until `make setup`; the generated `scripts/check-skills.sh` (in `make check`) checks them.
 - `scripts/check-combination.sh`: generates a project from the working tree and runs its
   `make setup` and `make check`. `scripts/check-update.sh`: checks that `copier update` applies a
   template change cleanly. `scripts/check-name-lengths.sh`: generates the backend for every
@@ -59,6 +62,12 @@ Neon or Logfire without the user's explicit go-ahead.
   touches (at least the defaults), `scripts/check-update.sh` when you change file layout, and
   `scripts/check-name-lengths.sh` when you change a Python line that contains an answer.
   They take a few minutes each: run them in the background, once, at the end.
+- **Library skills.** Link a skill a dependency ships (a relative symlink as above; a
+  conditional name such as `{% if agent == 'x' %}name{% endif %}` works) only when its whole
+  purpose fits every project that gets the link: not `logfire-setup`, `logfire-infrastructure`
+  or `migrating-*`. Where its advice differs from the project's conventions, name the difference
+  in the generated `AGENTS.md` ("Library skills are generic; this file wins"). Skills that
+  live only in other repositories are listed in the generated README, never copied or fetched.
 - **A new option or value** goes into at least one row of the CI matrix and into the README tables.
 - **Nothing from any particular project** (domain names, data, people) enters the template.
 - **Versions.** Python dependencies are lower bounds in `pyproject.toml.jinja`; the visor's are

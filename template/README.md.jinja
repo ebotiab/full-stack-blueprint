@@ -192,23 +192,24 @@ and lists any error since.
 `.agents/skills/` (also `.claude/skills/`) gives agents the project's own procedures and links to
 the skills that FastAPI, Typer and Logfire ship in their packages, so the guidance matches the
 installed versions. More skills that fit this project live in other repositories; add the ones you
-want with [`npx skills`](https://github.com/vercel-labs/skills), which records the commit of each in
-`skills-lock.json` (commit it):
+want with [`npx skills`](https://github.com/vercel-labs/skills) (it needs Node), which records the
+commit of each in `skills-lock.json` (commit it). `--min-release-age=7` runs a release of the tool
+that is at least 7 days old, as the rest of the project installs:
 
 ```bash
-npx skills add pydantic/skills --skill pydantic                  # Pydantic models and validation
-npx skills add pydantic/skills --skill logfire-query             # query this project's traces
+npx --min-release-age=7 skills add pydantic/skills --skill pydantic                # Pydantic models and validation
+npx --min-release-age=7 skills add pydantic/skills --skill logfire-query           # query this project's traces
 {%- if with_frontend %}
-npx skills add pydantic/skills --skill logfire-frontend          # browser errors and Web Vitals
-npx skills add microsoft/playwright-cli --skill playwright-cli   # drive a browser from the agent
+npx --min-release-age=7 skills add pydantic/skills --skill logfire-frontend        # browser errors and Web Vitals
+npx --min-release-age=7 skills add microsoft/playwright-cli --skill playwright-cli # drive a browser from the agent
 {%- endif %}
 {%- if with_database %}
-npx skills add neondatabase/agent-skills --skill neon-postgres   # the production database
+npx --min-release-age=7 skills add neondatabase/agent-skills --skill neon-postgres # the production database
 {%- endif %}
 {%- if api_deploy == 'render' %}
-npx skills add render-oss/skills --skill render-deploy           # deploys on Render
+npx --min-release-age=7 skills add render-oss/skills --skill render-deploy         # deploys on Render
 {%- elif api_deploy == 'railway' %}
-npx skills add railwayapp/railway-skills --skill use-railway     # deploys on Railway
+npx --min-release-age=7 skills add railwayapp/railway-skills --skill use-railway   # deploys on Railway
 {%- endif %}
 ```
 

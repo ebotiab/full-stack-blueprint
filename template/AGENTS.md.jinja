@@ -188,18 +188,22 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   and in `backend/.env.example`. Secrets never enter the repository; everything runs locally without credentials.
 - **Library skills are generic; this file wins.** Where a linked library skill and this file or
   the project's own skills disagree, follow this project. Known differences: the `fastapi` skill
-  runs the app with `fastapi dev`, here `make dev`;
-{%- if with_database %} it suggests SQLModel, but queries here are plain
-  SQL with asyncpg ("SQL, no ORM");
+  runs the app with `fastapi dev` (here `make dev`) and suggests FastAPI's native OpenTelemetry,
+  but Logfire traces the requests here (`observability.py`);
+{%- if with_database %}
+  it suggests SQLModel, but queries here are plain SQL with asyncpg ("SQL, no ORM");
 {%- endif %}
-{%- if api_deploy != 'fastapi_cloud' %} it presents FastAPI Cloud as the way to deploy, but this
-  project deploys to {{ {'render': 'Render', 'railway': 'Railway', 'vercel': 'Vercel'}[api_deploy] }} ("Deploy");
+{%- if api_deploy != 'fastapi_cloud' %}
+  it presents FastAPI Cloud as the way to deploy, but this project deploys to {{ {'render': 'Render', 'railway': 'Railway', 'vercel': 'Vercel'}[api_deploy] }} ("Deploy");
 {%- endif %}
-{%- if type_checker == 'pyright' %} it recommends ty, but the type checker here is pyright;
+{%- if type_checker == 'pyright' %}
+  it recommends ty, but the type checker here is pyright;
 {%- endif %}
   `logfire-instrumentation` suggests `logfire run` and its own `configure()`, but Logfire is
-  configured once in `observability.py` (add `instrument_*()` calls there), and creating Logfire
-  projects or tokens is for the user.
+  configured once in `observability.py` (add `instrument_*()` calls there). Skip its first and last
+  steps, signing in (`whoami`, `auth`, `projects`) and checking that data reached Logfire: work on
+  the code without signing in, verify with pytest (tests never send) and, after a deploy, with
+  `obs status`. Logfire accounts, projects and tokens are for the user.
 - **No repeated work.** Read what the task needs, not every file. Run long commands (`make check`,
   Playwright) once at the end, in the background if your tool allows it, and do not spend turns
   saying they are still running.

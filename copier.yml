@@ -114,16 +114,16 @@ with_database:
   help: Include PostgreSQL (asyncpg pool, SQL migrations, docker-compose for local development).
   default: true
 
-# How the visor is styled. `css`: one small stylesheet, nothing to learn or install. `tailwind`:
-# Tailwind CSS 4 through its Vite plugin; components are styled with utility classes.
+# How the visor is styled. `tailwind` (default): Tailwind CSS 4 through its Vite plugin; components
+# are styled with utility classes. `css`: one small stylesheet, nothing to learn or install.
 ui:
   type: str
   help: How the visor is styled.
-  default: css
+  default: tailwind
   when: "{{ with_frontend }}"
   choices:
-    "Plain CSS: one small stylesheet": css
     "Tailwind CSS 4: utility classes in the components": tailwind
+    "Plain CSS: one small stylesheet": css
 
 postgres_port:
   type: int

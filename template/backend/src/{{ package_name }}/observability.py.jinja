@@ -82,7 +82,17 @@ def configure_logfire(settings: Settings) -> None:
 {%- if with_database %}
     logfire.instrument_asyncpg()
 {%- endif %}
+{%- if agent == 'pydantic_ai' %}
+    instrument_agent(settings)
+{%- endif %}
     _configured = True
+{%- if agent == 'pydantic_ai' %}
+
+
+def instrument_agent(settings: Settings) -> None:
+    """Agent runs, model requests and tool calls as spans; their text only if the setting allows."""
+    logfire.instrument_pydantic_ai(include_content=settings.agent_trace_content)
+{%- endif %}
 
 
 def request_attributes(

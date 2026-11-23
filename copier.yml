@@ -178,6 +178,18 @@ jobs:
     {% if jobs == 'postgres' and not with_database %}jobs=postgres keeps the jobs in PostgreSQL: it
     needs with_database=true.{% endif %}
 
+# An LLM agent the API calls, built with Pydantic AI (backend/src/<package>/agent/): one agent with
+# an example tool behind POST /api/agent, traced in Logfire and tested offline with Pydantic AI's test
+# models. `none` stays the default: a project gets no agent code unless it asks for it (the example
+# project shows it). The model and its key come from environment variables.
+agent:
+  type: str
+  help: An LLM agent the API calls, built with Pydantic AI.
+  default: none
+  choices:
+    "None": none
+    "Pydantic AI: one agent behind POST /api/agent, model and key from environment variables": pydantic_ai
+
 # Python type checker. pyright is the default because it is stable and matches Pylance (VS Code).
 # ty (Astral) is faster and is the planned default once it reaches a stable 1.0 release: when that
 # happens, change `default: pyright` to `default: ty` below (one line) and update the README

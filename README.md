@@ -16,8 +16,8 @@ FastAPI · PostgreSQL · React · TypeScript, with tests, CI and deploy config i
 > [!TIP]
 > **See the result before you start.**
 > [**full-stack-blueprint-example**](https://github.com/ebotiab/full-stack-blueprint-example) is a
-> project generated from this template with every default answer except one, `auth=sessions`, so
-> that it also shows the optional sign-in. It is updated at every release. Browse its
+> project generated from this template with every default answer except two, `auth=sessions` and
+> `agent=pydantic_ai`, so that it also shows the optional sign-in and agent. It is updated at every release. Browse its
 > code, its README and its passing CI to see exactly what you will get.
 
 ## At a glance
@@ -127,6 +127,7 @@ my-app/
   pydantic-settings, a Typer CLI (`migrate`, `openapi`, `obs status`), Logfire (works without a
   token), pytest against a real PostgreSQL, ruff, and pyright or ty. Optional sign-in
   (`auth: sessions`): accounts, session cookies and API keys in PostgreSQL, with pwdlib (Argon2id).
+  Optional LLM agent (`agent: pydantic_ai`): Pydantic AI behind `POST /api/agent`, tested offline.
 - **Visor** (`frontend/`, optional): Vite 8, React 19, TypeScript 7, Tailwind CSS 4 or plain CSS,
   a client typed from the API's OpenAPI schema (`openapi-typescript` + `openapi-fetch`), oxlint
   with type-aware rules, oxfmt (exact version), Vitest, Playwright, `@pydantic/logfire-browser` and
@@ -330,6 +331,7 @@ Which answers suit which project: [🧭 Choosing your options](docs/choosing-you
 | `auth` | `none` | `none`, `sessions` (own accounts in PostgreSQL; needs the database), `oidc` (an external provider's tokens) |
 | `email` | `none` | `none`, `smtp` (any provider; Mailpit locally; password reset with `sessions`; needs the database) |
 | `jobs` | `none` | `none`, `postgres` (queued and periodic background jobs in PostgreSQL; needs the database) |
+| `agent` | `none` | `none`, `pydantic_ai` (an LLM agent behind `POST /api/agent`, built with Pydantic AI) |
 | `type_checker` | `pyright` | `pyright`, `ty` |
 | `api_deploy` | `render` | `render`, `fastapi_cloud`, `railway`, `vercel` |
 | `api_public_url` | the platform's usual URL | where the visor's `vercel.json` proxies `/api` (asked only with a visor and a non-Vercel API) |
@@ -435,6 +437,35 @@ dedicated worker, which costs money on every target.
 </details>
 
 <details>
+<summary><b>What <code>agent: pydantic_ai</code> adds</b></summary>
+
+The basics of an app that uses an LLM agent, in place from the first commit, under
+`backend/src/<package>/agent/`, with [Pydantic AI](https://ai.pydantic.dev) (`pydantic-ai-slim`
+with the Anthropic and OpenAI providers, light enough for serverless functions):
+
+- **One agent** (`assistant.py`): instructions, an example tool (the current UTC time), a typed
+  output and limits on every run: 8,000 tokens per model response, 5 model requests and 40,000
+  tokens in all, 2 minutes. It is built without a model, so the API starts without any key.
+- **The model** from `<PREFIX>AI_MODEL` (default `anthropic:claude-opus-5-5`; `anthropic:…`,
+  `openai:…` or `gateway/…` for the Pydantic AI Gateway; other providers need their extra, such
+  as `pydantic-ai-slim[groq]`) and the provider's own key variable (`ANTHROPIC_API_KEY`…), also
+  read from `backend/.env` locally.
+- **`POST /api/agent`**: a question in, the typed answer out; 503 until a key is set, 422 past the
+  limits, 504 past the time, 502 when the provider fails (without echoing its message). With
+  `auth` it needs a signed-in user; without, it is public, so set a spending limit at the provider.
+- **Logfire** traces each run, model request and tool call, with the text of questions and answers
+  unless `<PREFIX>AGENT_TRACE_CONTENT=false`.
+- **Tests** never call a real model (`tests/conftest.py` blocks it): Pydantic AI's `TestModel` and
+  `FunctionModel` cover the tool, the limits, a failing provider and the missing key.
+- **Skills**: `building-pydantic-ai-agents`, `logfire-evals` and `logfire-gateway`, linked from the
+  installed packages like the others.
+
+No chat screen in the visor and no conversation history yet: the visor can call the route through
+its typed client like any other, and history is a table away when the project needs it.
+
+</details>
+
+<details>
 <summary><b>What each deploy target generates</b></summary>
 
 | `api_deploy` | Files | Migrations run | Deployed commit read from |
@@ -511,6 +542,9 @@ For every project:
 - **GitHub**: protect `main` with the required checks `Backend` and `Frontend`, and allow auto-merge.
 - **Email** (with `email: smtp`): an SMTP provider with your sending domain verified, and its
   `SMTP_*` settings plus `EMAIL_FROM` (with the project's prefix) on the API's platform.
+- **Agent** (with `agent: pydantic_ai`): the model provider's key on the API's platform,
+  `ANTHROPIC_API_KEY` for the default model or the variable of the provider in `<PREFIX>AI_MODEL`
+  (`OPENAI_API_KEY`, `PYDANTIC_AI_GATEWAY_API_KEY`), and a spending limit at the provider.
 - **Background jobs** (with `jobs: postgres`, except on Railway): a `CRON_SECRET` on the API's
   platform and in GitHub, and the repository variable `API_URL`, for `jobs-tick.yml`.
 
@@ -590,8 +624,8 @@ A release is an annotated tag (`vX.Y.Z`) on `main`, and pushing it runs two work
 `.github/workflows/release.yml` publishes the GitHub Release: its notes open with the tag's message
 and list the pull requests merged since the previous version. `.github/workflows/update-example.yml`
 runs `scripts/update-example.sh` on a checkout of the example project and opens a pull request
-there, which merges itself when the example's CI passes. The script also passes the example's one
-non-default answer (`auth=sessions`). It needs the secret `EXAMPLE_REPO_TOKEN` (the workflow's
+there, which merges itself when the example's CI passes. The script also passes the example's
+non-default answers (`auth=sessions`, `agent=pydantic_ai`). It needs the secret `EXAMPLE_REPO_TOKEN` (the workflow's
 first comment says which token).
 
 ## License

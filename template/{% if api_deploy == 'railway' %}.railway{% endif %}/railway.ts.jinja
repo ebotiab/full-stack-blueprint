@@ -25,6 +25,10 @@ export default defineRailway(() => {
       {{ env_prefix }}ENVIRONMENT: 'production',
       // Logfire write token, set in the Railway dashboard. Without it nothing is sent.
       LOGFIRE_TOKEN: preserve(),
+{%- if agent == 'pydantic_ai' %}
+      // The agent's model key (or the provider's variable for another AI_MODEL), set in the dashboard.
+      ANTHROPIC_API_KEY: preserve(),
+{%- endif %}
     },
   })
 

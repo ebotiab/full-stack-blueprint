@@ -444,14 +444,15 @@ The basics of an app that uses an LLM agent, in place from the first commit, und
 with the Anthropic and OpenAI providers, light enough for serverless functions):
 
 - **One agent** (`assistant.py`): instructions, an example tool (the current UTC time), a typed
-  output and usage limits on every run (5 model requests, 20,000 tokens), so a question cannot
-  loop without bound. It is built without a model, so the API starts without any key.
-- **The model** from `<PREFIX>AI_MODEL` (default `anthropic:claude-opus-5-5`; any Pydantic AI
-  model string, `gateway/…` for the Pydantic AI Gateway) and the provider's own key variable
-  (`ANTHROPIC_API_KEY`…), also read from `backend/.env` locally.
+  output and limits on every run: 8,000 tokens per model response, 5 model requests and 40,000
+  tokens in all, 2 minutes. It is built without a model, so the API starts without any key.
+- **The model** from `<PREFIX>AI_MODEL` (default `anthropic:claude-opus-5-5`; `anthropic:…`,
+  `openai:…` or `gateway/…` for the Pydantic AI Gateway; other providers need their extra, such
+  as `pydantic-ai-slim[groq]`) and the provider's own key variable (`ANTHROPIC_API_KEY`…), also
+  read from `backend/.env` locally.
 - **`POST /api/agent`**: a question in, the typed answer out; 503 until a key is set, 422 past the
-  usage limits, 502 when the provider fails (without echoing its message). With `auth` it needs a
-  signed-in user; without, it is public, so set a spending limit at the provider.
+  limits, 504 past the time, 502 when the provider fails (without echoing its message). With
+  `auth` it needs a signed-in user; without, it is public, so set a spending limit at the provider.
 - **Logfire** traces each run, model request and tool call, with the text of questions and answers
   unless `<PREFIX>AGENT_TRACE_CONTENT=false`.
 - **Tests** never call a real model (`tests/conftest.py` blocks it): Pydantic AI's `TestModel` and
@@ -459,7 +460,7 @@ with the Anthropic and OpenAI providers, light enough for serverless functions):
 - **Skills**: `building-pydantic-ai-agents`, `logfire-evals` and `logfire-gateway`, linked from the
   installed packages like the others.
 
-No chat screen in the visor and no conversation history yet: the visor calls the route through
+No chat screen in the visor and no conversation history yet: the visor can call the route through
 its typed client like any other, and history is a table away when the project needs it.
 
 </details>

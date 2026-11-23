@@ -1,5 +1,6 @@
 """The agent, its model and its route, offline: Pydantic AI's test models stand in for a real one."""
 
+import asyncio
 import datetime as dt
 from collections.abc import Iterator
 from pathlib import Path
@@ -11,11 +12,12 @@ import pytest
 from asgi_lifespan import LifespanManager
 {%- endif %}
 from fastapi import FastAPI
-from pydantic_ai.exceptions import ModelHTTPError, UserError
+from pydantic_ai.exceptions import ModelHTTPError, OutputTokenLimitExceeded, UserError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart
 from pydantic_ai.models import Model
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.settings import ModelSettings
 
 from {{ package_name }}.agent import (
     assistant,
@@ -37,9 +39,7 @@ from {{ package_name }}.observability import (
     instrument_agent,
 )
 from {{ package_name }}.settings import (
-{%- if auth == 'oidc' %}
     PREFIX,
-{%- endif %}
     Settings,
     get_settings,
 )
@@ -51,9 +51,9 @@ MODEL = "anthropic:claude-opus-5-5"
 
 @pytest.fixture
 def no_model_key(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Path]:
-    """No provider key in the environment nor in a .env file, all restored after the test."""
+    """No provider key (nor a model choice) in the environment or a .env file, restored after."""
     monkeypatch.chdir(tmp_path)
-    for name in PROVIDER_KEYS:
+    for name in (*PROVIDER_KEYS, f"{PREFIX}AI_MODEL"):
         # setenv first records the variable, so whatever the test sets (load_dotenv) is undone.
         monkeypatch.setenv(name, "")
         monkeypatch.delenv(name)
@@ -99,6 +99,15 @@ def reject_the_key(messages: list[ModelMessage], info: AgentInfo) -> ModelRespon
     raise ModelHTTPError(401, "test", body={"error": "invalid x-api-key: test-key"})
 
 
+def cut_off(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+    raise OutputTokenLimitExceeded("The answer reached max_tokens.")
+
+
+async def answer_late(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+    await asyncio.sleep(1)
+    return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"answer": "late"})])
+
+
 async def test_the_agent_calls_its_tool() -> None:
     result = await assistant.agent.run(
         "What time is it?", model=TestModel(), usage_limits=assistant.LIMITS
@@ -111,6 +120,17 @@ async def test_the_agent_calls_its_tool() -> None:
     ]
     assert "current_time" in returned
     assert isinstance(result.output, assistant.AgentAnswer)
+
+
+async def test_each_model_response_is_capped() -> None:
+    caps: list[int] = []
+
+    def answer(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        caps.append((info.model_settings or ModelSettings()).get("max_tokens") or 0)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"answer": "ok"})])
+
+    await assistant.agent.run("Hi", model=FunctionModel(answer), usage_limits=assistant.LIMITS)
+    assert 0 < caps[0] < (assistant.LIMITS.total_tokens_limit or 0)
 
 
 def test_current_time_is_utc() -> None:
@@ -148,6 +168,29 @@ async def test_agent_rejects_an_empty_or_overlong_question(question: str) -> Non
 async def test_agent_answers_422_when_it_hits_the_usage_limits() -> None:
     response = await ask(agent_app(FunctionModel(call_the_tool_forever)), "Loop.")
     assert response.status_code == 422
+
+
+async def test_agent_answers_422_when_an_answer_is_cut_off() -> None:
+    response = await ask(agent_app(FunctionModel(cut_off)), "Write a book.")
+    assert response.status_code == 422
+
+
+async def test_agent_answers_504_when_the_run_takes_too_long(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(assistant, "TIMEOUT", 0.05)
+    response = await ask(agent_app(FunctionModel(answer_late)), "Take your time.")
+    assert response.status_code == 504
+
+
+async def test_agent_answers_503_for_a_provider_that_is_not_installed(
+    no_model_key: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(f"{PREFIX}AI_MODEL", "groq:llama-3.3-70b-versatile")
+    get_settings.cache_clear()
+    response = await ask(agent_app(), "Hello?")
+    assert response.status_code == 503
+    assert "pydantic-ai-slim[groq]" in response.json()["detail"]
 
 
 async def test_agent_answers_502_when_the_provider_fails() -> None:

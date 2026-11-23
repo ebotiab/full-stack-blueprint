@@ -223,6 +223,14 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   steps, signing in (`whoami`, `auth`, `projects`) and checking that data reached Logfire: work on
   the code without signing in, verify with pytest (tests never send) and, after a deploy, with
   `obs status`. Logfire accounts, projects and tokens are for the user.
+{%- if agent == 'pydantic_ai' %}
+  `building-pydantic-ai-agents`, `logfire-evals` and `logfire-gateway` start with a model in
+  `Agent(...)`, `logfire.configure()` next to the agent and Logfire or Gateway sign-in
+  (`logfire-cli auth`, `whoami`, keys), and say not to use `send_to_logfire='if-token-present'`:
+  here the agent has no model of its own (`{{ env_prefix }}AI_MODEL`), Logfire is configured once in
+  `observability.py` with `if-token-present` on purpose (nothing is sent without a token), and
+  keys are for the user.
+{%- endif %}
 - **No repeated work.** Read what the task needs, not every file. Run long commands (`make check`,
   Playwright) once at the end, in the background if your tool allows it, and do not spend turns
   saying they are still running.

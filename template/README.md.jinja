@@ -172,7 +172,8 @@ Without the Vercel variable, Vercel sends the literal text `$ORIGIN_SECRET`: set
 
 {% if agent == 'pydantic_ai' %}**Agent.** Set the model's key on the API's platform: `ANTHROPIC_API_KEY` for the default model, or
 the variable of the provider in `{{ env_prefix }}AI_MODEL`. Until then `/api/agent` answers 503.{% if auth == 'none' %} The route is
-public: set a spending limit at the provider.{% endif %}
+public: set a spending limit at the provider.{% endif %} Logfire traces keep the text of questions and
+answers{% if auth == 'none' %}, visitors' included{% endif %}; `{{ env_prefix }}AGENT_TRACE_CONTENT=false` keeps only the metadata.
 
 {% endif %}**GitHub.** Protect `main`: require pull requests and the checks `Backend` and `Frontend`, and
 allow auto-merge (Settings → General → "Allow auto-merge").

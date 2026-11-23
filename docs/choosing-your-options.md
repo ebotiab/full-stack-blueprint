@@ -207,7 +207,7 @@ template's style.
 | --- | --- |
 | File uploads | Object storage (Vercel Blob, Cloudflare R2, S3) with presigned URLs; keep only the key in PostgreSQL |
 | Payments | Stripe Checkout and a webhook route that verifies the signature |
-| AI features | Pydantic AI; Logfire, already in the project, traces its calls |
+| A chat screen and conversation history for the agent | Pydantic AI's adapter for the AI SDK's `useChat` in the visor; a table of messages |
 | Real-time updates | Server-sent events from FastAPI (not on `vercel`, whose functions end with the request) |
 
 ## 🔄 Changing your mind

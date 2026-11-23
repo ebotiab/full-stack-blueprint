@@ -1,7 +1,9 @@
 """Outgoing email through SMTP: Mailpit locally (`make db-up`), your provider in production.
 
-A route takes a `MailerDep` and hands the message to a background task with `deliver`, so the
-response neither waits for the SMTP server nor reveals, by its timing, whether a message was sent.
+A route takes a `MailerDep` and sends from a background task with `deliver`, so the response
+neither waits for the SMTP server nor reveals, by its timing, whether a message was sent. When the
+message depends on what the request found, the task builds it too: no error can then make the
+answer differ.
 Tests override `get_mailer` with an object that keeps the messages instead.
 """
 

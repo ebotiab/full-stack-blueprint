@@ -163,10 +163,13 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   expiry always checked, cached keys.{% if with_database %} Users are keyed by `(issuer, subject)`, never by email.{% endif %}
 {%- endif %}
 {%- if email == 'smtp' %}
-- **Email.** Build messages with `mail.message` and send them from a route with
-  `background.add_task(deliver, mailer, msg)` (a `MailerDep` parameter): never await the SMTP server
-  in the request. Locally everything goes to Mailpit; tests override `get_mailer` and read what
-  would have been sent. Never log a message's body or recipient: it may hold a code.
+- **Email.** Build messages with `mail.message` and send them from a route in a background task (a
+  `MailerDep` parameter): never await the SMTP server in the request. When what the request found
+  decides whether an email goes out, build it in the task too (a small async function that calls
+  `deliver`), so that no error can make the answer differ; send to the address stored in the
+  database, never to the text of the request. Locally everything goes to Mailpit; tests override
+  `get_mailer` and read what would have been sent. Never log a message's body or recipient: it may
+  hold a code.
 {%- endif %}
 {%- if jobs == 'postgres' %}
 - **Background jobs.** Work that may fail or take long leaves the request: add an async task

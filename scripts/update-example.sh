@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Bring a checkout of the example project (the one the README links to) up to date with this
-# template: `copier update` to the template's latest commit, then regenerate what `make setup`
-# generates and the project commits (lockfiles, OpenAPI schema, API types).
+# template: `copier update` to a version of the template (the workflow passes the release's tag;
+# the default is the latest commit), then regenerate what `make setup` generates and the project
+# commits (lockfiles, OpenAPI schema, API types).
 #
 #   scripts/update-example.sh <checkout-of-the-example> [template-ref]
 #

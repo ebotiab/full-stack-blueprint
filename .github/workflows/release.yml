@@ -1,0 +1,71 @@
+# Publishes a GitHub Release for every version of the template, so that a project can read what an
+# update brings before it runs `copier update`. A version is an annotated tag (`vX.Y.Z`) pushed to
+# this repository. The notes open with the tag's message (what changes for a project that updates,
+# including any new default it would take) and go on with the pull requests merged since the
+# previous version, which GitHub lists (.github/release.yml leaves out Dependabot's updates of
+# this repository's own CI).
+#
+# Run it by hand with an existing tag to publish that version's release. A release that already
+# exists is left as it is.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to publish, such as v0.8.3
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish the release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # creates the release
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Publish the release
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$TAG is not a version tag (vX.Y.Z)."
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "The release $TAG already exists."
+            exit 0
+          fi
+
+          versions=$(gh api "repos/$GH_REPO/tags" --paginate --jq '.[].name' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V)
+          if ! grep -qx "$TAG" <<<"$versions"; then
+            echo "::error::$GH_REPO has no tag $TAG."
+            exit 1
+          fi
+          previous=$(awk -v tag="$TAG" '$0 == tag { print prev } { prev = $0 }' <<<"$versions")
+          newest=$(tail -n 1 <<<"$versions")
+
+          # The annotated tag's message, without a leading "vX.Y.Z: ". A lightweight tag has none.
+          read -r type sha < <(gh api "repos/$GH_REPO/git/ref/tags/$TAG" \
+            --jq '.object.type + " " + .object.sha')
+          message=""
+          if [ "$type" = tag ]; then
+            message=$(gh api "repos/$GH_REPO/git/tags/$sha" --jq .message \
+              | sed -E '1s/^v[0-9.]+: *//; 1s/^./\U&/')
+          fi
+
+          args=(--verify-tag --title "$TAG" --generate-notes)
+          if [ -n "$message" ]; then args+=(--notes "$message"); fi
+          if [ -n "$previous" ]; then args+=(--notes-start-tag "$previous"); fi
+          # Publishing an older version by hand must not take "Latest" from the newest one.
+          if [ "$TAG" != "$newest" ]; then args+=(--latest=false); fi
+          gh release create "$TAG" "${args[@]}"

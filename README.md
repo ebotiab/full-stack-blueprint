@@ -7,7 +7,7 @@
 FastAPI · PostgreSQL · React · TypeScript, with tests, CI and deploy config included.
 
 [![CI](https://github.com/ebotiab/full-stack-blueprint/actions/workflows/ci.yml/badge.svg)](https://github.com/ebotiab/full-stack-blueprint/actions/workflows/ci.yml)
-[![Latest release](https://img.shields.io/github/v/tag/ebotiab/full-stack-blueprint?label=release&sort=semver)](https://github.com/ebotiab/full-stack-blueprint/tags)
+[![Latest release](https://img.shields.io/github/v/release/ebotiab/full-stack-blueprint?sort=semver)](https://github.com/ebotiab/full-stack-blueprint/releases)
 [![Copier](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/copier-org/copier/master/img/badge/badge-grayscale-inverted-border-orange.json)](https://github.com/copier-org/copier)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -17,7 +17,7 @@ FastAPI · PostgreSQL · React · TypeScript, with tests, CI and deploy config i
 > **See the result before you start.**
 > [**full-stack-blueprint-example**](https://github.com/ebotiab/full-stack-blueprint-example) is a
 > project generated from this template with every default answer except one, `auth=sessions`, so
-> that it also shows the optional sign-in. It is regenerated after every change here. Browse its
+> that it also shows the optional sign-in. It is updated at every release. Browse its
 > code, its README and its passing CI to see exactly what you will get.
 
 ## At a glance
@@ -548,7 +548,10 @@ API URL in `frontend/vercel.json`.
 
 ## Update a project
 
-Copier remembers the answers in the project's `.copier-answers.yml`. When the template improves:
+Copier remembers the answers in the project's `.copier-answers.yml`. When the template improves,
+read the [release notes](https://github.com/ebotiab/full-stack-blueprint/releases) from your
+project's version (`_commit` in that file) to the latest: they say what changes, including any new
+default the project would take and the `--data` that keeps the old behavior. Then:
 
 ```bash
 cd my-project
@@ -578,11 +581,13 @@ plus the name-length check and the update check, on every pull request and every
 release of a dependency can break new projects without any commit here.
 Agents working on the template read [AGENTS.md](AGENTS.md).
 
-The example project follows `main`: after every push that changes what the template generates,
-`.github/workflows/update-example.yml` runs `scripts/update-example.sh` on a checkout of the
-example and opens a pull request there, which merges itself when the example's CI passes. The
-script also passes the example's one non-default answer (`auth=sessions`). It
-needs the secret `EXAMPLE_REPO_TOKEN` (the workflow's first comment says which token).
+A release is an annotated tag (`vX.Y.Z`) on `main`, and pushing it runs two workflows.
+`.github/workflows/release.yml` publishes the GitHub Release: its notes open with the tag's message
+and list the pull requests merged since the previous version. `.github/workflows/update-example.yml`
+runs `scripts/update-example.sh` on a checkout of the example project and opens a pull request
+there, which merges itself when the example's CI passes. The script also passes the example's one
+non-default answer (`auth=sessions`). It needs the secret `EXAMPLE_REPO_TOKEN` (the workflow's
+first comment says which token).
 
 ## License
 

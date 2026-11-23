@@ -187,6 +187,34 @@ if the provider allows patterns, the preview URLs as redirect and logout URLs, a
 **After a deploy.** `cd backend && uv run {{ project_slug }} obs status --commit <sha> --wait 15` says when the commit is live
 and lists any error since.
 
+## Skills for coding agents
+
+`.agents/skills/` (also `.claude/skills/`) gives agents the project's own procedures and links to
+the skills that FastAPI, Typer and Logfire ship in their packages, so the guidance matches the
+installed versions. More skills that fit this project live in other repositories; add the ones you
+want with [`npx skills`](https://github.com/vercel-labs/skills) (it needs Node), which records the
+commit of each in `skills-lock.json` (commit it). `--min-release-age=7` runs a release of the tool
+that is at least 7 days old, as the rest of the project installs:
+
+```bash
+npx --min-release-age=7 skills add pydantic/skills --skill pydantic                # Pydantic models and validation
+npx --min-release-age=7 skills add pydantic/skills --skill logfire-query           # query this project's traces
+{%- if with_frontend %}
+npx --min-release-age=7 skills add pydantic/skills --skill logfire-frontend        # browser errors and Web Vitals
+npx --min-release-age=7 skills add microsoft/playwright-cli --skill playwright-cli # drive a browser from the agent
+{%- endif %}
+{%- if with_database %}
+npx --min-release-age=7 skills add neondatabase/agent-skills --skill neon-postgres # the production database
+{%- endif %}
+{%- if api_deploy == 'render' %}
+npx --min-release-age=7 skills add render-oss/skills --skill render-deploy         # deploys on Render
+{%- elif api_deploy == 'railway' %}
+npx --min-release-age=7 skills add railwayapp/railway-skills --skill use-railway   # deploys on Railway
+{%- endif %}
+```
+
+They are read as instructions: look at what a skill says before adding it.
+
 ## Template updates
 
 This project was generated with [Copier](https://copier.readthedocs.io) from `full-stack-blueprint`.

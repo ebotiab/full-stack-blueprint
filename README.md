@@ -89,7 +89,7 @@ gives a clear verdict the agent can act on without asking.
 | **SQL, no ORM** | Queries are plain SQL run with asyncpg, next to the code that uses them, and a schema change is a numbered `.sql` file. An ORM saves people from writing SQL; for an agent that work is cheap, while an ORM adds a second language and queries generated out of sight. |
 | **Contracts that machines check** | Types on both sides, an OpenAPI schema committed with the code, TypeScript types generated from it and tests against a real PostgreSQL. When any of them drifts the CI fails, so a mistake shows up as a failed check instead of a bug in production. |
 | **Commands that never ask** | Every `make` target runs without prompts and ends with a reliable exit code and a summary of what passed and failed. |
-| **Instructions in the repository** | Each project has an `AGENTS.md` (Claude Code reads it through `CLAUDE.md`; Codex, Cursor and others read it directly) and skills for its usual tasks, such as changing the API or shipping a change. |
+| **Instructions in the repository** | Each project has an `AGENTS.md` (Claude Code reads it through `CLAUDE.md`; Codex, Cursor and others read it directly), skills for its usual tasks, such as changing the API or shipping a change, and links to the skills that FastAPI, Typer and Logfire ship in their packages, so the agent follows the versions the project has installed. |
 | **Worktrees that run side by side** | Agents often work in several git worktrees of one project at once. They share the project's one local PostgreSQL, each worktree with its own databases, and the browser tests take a free port, so their `make setup` and `make check` runs never collide. |
 | **Production the agent can check** | `obs status` reads the traces in Logfire and tells whether a commit is deployed and serving without errors, so a task ends when production confirms it. |
 
@@ -101,7 +101,8 @@ A project generated with the defaults, here called `my-app`:
 my-app/
 ├── AGENTS.md              instructions for coding agents (CLAUDE.md points here)
 ├── Makefile               setup · dev · check · fmt · types · migrate …
-├── .agents/skills/        step-by-step tasks for agents: change the API, ship a change
+├── .agents/skills/        agent skills: change the API, ship a change, and links to the
+│                          skills FastAPI, Typer and Logfire ship in their packages
 ├── backend/               the API
 │   ├── src/my_app/
 │   │   ├── api/           FastAPI app and routes
@@ -286,7 +287,8 @@ change in plain words, for example:
 > Add an endpoint that lists bus stops near a point, with its table and migration.
 
 The agent reads `AGENTS.md`, which has the layout, the commands and the conventions, and the
-skills in `.agents/skills/` for usual tasks such as changing the API. The conventions ask it to
+skills in `.agents/skills/`: the project's own, for usual tasks such as changing the API, and the
+ones FastAPI, Typer and Logfire ship for the installed versions. The conventions ask it to
 write tests, run `make check` and open one small pull request per task, marked to merge itself as
 soon as the CI passes; you can review it before then.
 [Built for development with coding agents](#built-for-development-with-coding-agents) explains
@@ -473,8 +475,9 @@ Two versions held back until every part of a project can run them:
 - **Python 3.15** (released in October 2026) once every deploy target runs it: Vercel's Python
   runtime listed 3.12 to 3.14 in November 2026, and FastAPI Cloud needs the same check. The version
   is written in `backend/pyproject.toml` (`requires-python`, ruff's `target-version` and the type
-  checker's version), `backend/.python-version`, the workflows, the Dockerfile's base image and
-  the standard-library list in `copier.yml`.
+  checker's version), `backend/.python-version`, the workflows, the Dockerfile's base image,
+  the standard-library list in `copier.yml` and the paths of the library-skill links in
+  `template/.agents/skills/` (`python3.14`).
 - **PostgreSQL 19** (released on 19 November 2026) once it has its first minor release and Neon
   offers it for new projects. The version is written in `docker-compose.yml` (the image and the
   volume's name) and in the CI's `postgres` service.

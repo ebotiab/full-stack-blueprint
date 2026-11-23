@@ -75,12 +75,12 @@ Without it you skip Node, npm and a Vercel project. The API is the same either w
 
 #### 🎨 `ui`: how the visor is styled (only with the visor)
 
-| | 📄 `css` (default) | 🌬️ `tailwind` |
+| | 🌬️ `tailwind` (default) | 📄 `css` |
 | --- | --- | --- |
-| **What you get** | One small stylesheet, `src/index.css` | Tailwind CSS 4 through its Vite plugin; no config file |
-| **How you style** | CSS rules for elements and classes | Utility classes in `className` (`flex gap-4 text-sm`), dark mode with `dark:` |
-| **Best for** | Data visors and internal pages with little design | Apps whose UI will grow: consistent spacing and colors, and agents write it fluently |
-| **Keep in mind** | Grows harder to keep consistent as screens multiply | One more dev dependency; long class lists if you dislike them |
+| **What you get** | Tailwind CSS 4 through its Vite plugin; no config file | One small stylesheet, `src/index.css` |
+| **How you style** | Utility classes in `className` (`flex gap-4 text-sm`), dark mode with `dark:` | CSS rules for elements and classes |
+| **Best for** | Apps whose UI will grow: consistent spacing and colors, and agents write it fluently | A visor that stays one or two plain pages, or a team that prefers writing CSS |
+| **Keep in mind** | One more dev dependency; long class lists if you dislike them | Grows harder to keep consistent as screens multiply |
 
 With `tailwind`, the generated pages keep their markup and get their look from a few base rules in
 `src/index.css`; new components use utility classes. Ready components (shadcn/ui) come later,
@@ -204,3 +204,6 @@ Copier adds the new files and applies the changes to the ones you have edited to
 conflict markers where both changed the same lines. Turning an option **off** takes its files out
 of the template's output, but not the tables its migrations created: drop those with a new
 migration if you want them gone, and check that nothing of yours still imports the removed code.
+
+A question your project never answered takes the current default on update. A visor generated
+before `ui` existed (before v0.7.0) becomes Tailwind; add `--data ui=css` to keep its stylesheet.

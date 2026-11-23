@@ -8,6 +8,11 @@
 #
 # The output directory must not exist. The generated project is committed in a fresh git
 # repository first, as a person would, so `copier update` can be tried on it afterwards.
+#
+# When the script ends, passed or failed, it removes what `make setup` started in Docker
+# (PostgreSQL, Mailpit) together with its data: the project is throwaway, and a container left
+# running blocks the next run of a combination with the same project name. The project's files
+# stay; `make db-up` in it starts an empty database again (then `make setup` migrates it).
 set -euo pipefail
 
 if [ $# -lt 1 ]; then
@@ -27,6 +32,15 @@ echo "==> copier copy --defaults $* → $out"
 copier copy --defaults --vcs-ref HEAD "$@" "$template" "$out"
 
 cd "$out"
+project=$(pwd)
+stop_docker() {
+  if [ -f "$project/docker-compose.yml" ]; then
+    echo "==> docker compose down --volumes"
+    (cd "$project" && docker compose down --volumes --remove-orphans) || true
+  fi
+}
+trap stop_docker EXIT
+
 git init -q -b main
 git add -A
 git -c user.name=template-ci -c user.email=template-ci@example.invalid commit -qm "Generate from template"

@@ -134,8 +134,9 @@ my-app/
   Only the chosen target's files are generated, in an EU region wherever the platform has one.
 - **Repository**: a CI that skips the half a pull request does not touch and fails when the
   OpenAPI schema or the generated types are stale, workflows audited by zizmor, grouped
-  Dependabot updates, a 7-day wait before any new release is installed (Dependabot, uv, npm),
-  VS Code settings that match the checks.
+  Dependabot updates that only touch the lockfiles while the version ranges allow it (so they do
+  not conflict with `copier update`), a 7-day wait before any new release is installed
+  (Dependabot, uv, npm), VS Code settings that match the checks.
 
 </details>
 

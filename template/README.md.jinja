@@ -24,6 +24,10 @@ make dev      # API on http://127.0.0.1:8000/api{% if with_frontend %}, visor on
 The API documentation is at http://127.0.0.1:8000/docs while `make dev` runs. Nothing needs
 credentials locally: Logfire sends nothing without a token{% if with_database %}, and the database is the local container{% endif %}.
 Optional local settings: `backend/.env.example`{% if with_frontend %} and `frontend/.env.example`{% endif %}.
+{%- if with_database %}
+Several git worktrees of the project can run `make setup` and `make check` at the same time: they
+share the local PostgreSQL, and each worktree gets its own databases in it (`scripts/db-name.sh`).
+{%- endif %}
 
 {% if email == 'smtp' %}Outgoing email goes to a local Mailpit while you develop: every message the API sends shows up at
 http://localhost:8025 (`make setup` and `make dev` start it with PostgreSQL). Nothing leaves your machine.

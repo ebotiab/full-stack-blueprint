@@ -56,6 +56,18 @@ if command -v docker >/dev/null 2>&1; then
     else
       ok "port {{ postgres_port }} is available for PostgreSQL"
     fi
+    # Every checkout shares one Compose project, {{ project_slug }} (docker-compose.yml, `name:`;
+    # COMPOSE_PROJECT_NAME overrides it). A container of the same name under another Compose
+    # project is in the way: this project's own from before `name:` (named after the folder), or
+    # another project's with the same name. Removing it keeps its data, in its volume, which its
+    # Compose project uses again when it next starts.
+    expected=${COMPOSE_PROJECT_NAME:-{{ project_slug }}}
+    for container in {{ project_slug }}-postgres{% if email == 'smtp' %} {{ project_slug }}-mailpit{% endif %}; do
+      project=$(docker inspect --format '{{ '{{' }}index .Config.Labels "com.docker.compose.project"{{ '}}' }}' "$container" 2>/dev/null || true)
+      if [ -n "$project" ] && [ "$project" != "$expected" ]; then
+        bad "the container $container belongs to the Compose project $project, not $expected" "docker rm -f $container  (data lives in volumes, not containers: PostgreSQL's stays in ${project}_postgres18; make setup then starts this project's own and migrates it)"
+      fi
+    done
 {%- if email == 'smtp' %}
     # Mailpit's ports (SMTP and its web page), also free or already ours.
     for port in 1025 8025; do

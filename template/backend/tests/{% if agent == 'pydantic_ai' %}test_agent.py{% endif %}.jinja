@@ -17,7 +17,11 @@ from pydantic_ai.models import Model
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.models.test import TestModel
 
-from {{ package_name }}.agent import assistant, model, routes
+from {{ package_name }}.agent import (
+    assistant,
+    model,
+    routes,
+)
 from {{ package_name }}.api.main import create_app
 {%- if auth == 'sessions' %}
 from {{ package_name }}.auth.deps import current_user
@@ -29,7 +33,9 @@ from {{ package_name }}.auth.deps import (
     get_verifier,
 )
 {%- endif %}
-from {{ package_name }}.observability import instrument_agent
+from {{ package_name }}.observability import (
+    instrument_agent,
+)
 from {{ package_name }}.settings import (
 {%- if auth == 'oidc' %}
     PREFIX,

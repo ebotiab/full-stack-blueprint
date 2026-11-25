@@ -35,9 +35,9 @@ project_slug:
     letters, digits and single hyphens, starting with a letter.{% endif %}
 
 # At most 58 characters: it is also the PostgreSQL user and database, and the test database
-# `<package_name>_test` must fit PostgreSQL's 63-byte names (it truncates longer ones: `make test`
-# would look for a name that does not exist, and from 63 characters the test database would be the
-# dev one). The generated code's lines fit 100 columns up to this length, and the CI checks every
+# `<package_name>-test` must fit PostgreSQL's 63-byte names (it truncates longer ones: `make test`
+# would look for a name that does not exist, and from 63 characters the truncated test name could match the
+# dev database). The generated code's lines fit 100 columns up to this length, and the CI checks every
 # length up to it (scripts/check-name-lengths.sh).
 package_name:
   type: str

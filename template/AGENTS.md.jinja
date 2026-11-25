@@ -143,8 +143,8 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
   CONCURRENTLY`) fails; the docstring of `db/migrate.py` says what to do instead.
 - **Git worktrees.** Several worktrees can run `make setup`, `make check` and the tests at the same
   time. They share the local PostgreSQL{% if email == 'smtp' %} and Mailpit{% endif %}, and each worktree has its own databases in it,
-  `wt_<worktree name>` and `wt_<worktree name>_test` (`bash scripts/db-name.sh` prints the first;
-  the main checkout keeps `{{ package_name }}`). `make db-up` creates them and writes the worktree's
+  a development database named by `bash scripts/db-name.sh` and its disposable `-test` database.
+  The main checkout keeps `{{ package_name }}` for development. `make db-up` creates them and writes the worktree's
   `{{ env_prefix }}DATABASE_URL` to its `backend/.env`, so `make`, the app and the CLI all use them. `make db-down`
   stops PostgreSQL for every checkout. A removed worktree's databases stay: `docker compose exec
   postgres psql -U {{ package_name }} -l` lists them and `docker compose exec postgres dropdb -U {{ package_name }} <name>` drops one.

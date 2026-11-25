@@ -29,7 +29,16 @@ for the default model, `{{ env_prefix }}AI_MODEL` to change it).{% endif %}
 Optional local settings: `backend/.env.example`{% if with_frontend %} and `frontend/.env.example`{% endif %}.
 {%- if with_database %}
 Several git worktrees of the project can run `make setup` and `make check` at the same time: they
-share the local PostgreSQL, and each worktree gets its own databases in it (`scripts/db-name.sh`).
+share one local PostgreSQL. Run `bash scripts/db-name.sh` to see this checkout's development
+database. Its disposable database has the same name followed by `-test`. Pytest checks the name
+and the database comment before it empties the public schema. For a separately managed test
+database ending in `-test` or `_test`, set its PostgreSQL database comment to
+`{{ env_prefix }}TEST_DATABASE_URL` only after confirming it is disposable.
+
+When updating a project with existing worktrees, `make db-up` moves its own generated URL in
+`backend/.env` to the new database name and reports the previous name. Existing databases keep
+their data. To carry development data forward, dump the previous database and restore it into
+the new development database before running `make setup`. Custom connection URLs are preserved.
 {%- endif %}
 
 {% if email == 'smtp' %}Outgoing email goes to a local Mailpit while you develop: every message the API sends shows up at

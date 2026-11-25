@@ -1,0 +1,3 @@
+-- Each claim gets a fresh ID. A late worker can only complete its own lease, even after a
+-- manual retry resets the attempt count. Existing jobs get an ID on their next claim.
+ALTER TABLE jobs ADD COLUMN lease_id UUID;

@@ -275,6 +275,28 @@ async def test_run_soon_starts_a_queued_job_after_the_response(
     assert recorder.payloads == [{"n": 7}]
 
 
+async def test_run_soon_defers_to_a_worker_when_the_pool_is_busy(
+    app_settings: None,
+    conn: asyncpg.Connection,
+    recorder: Recorder,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(f"{PREFIX}DB_POOL_MAX_SIZE", "1")
+    app = create_app()
+    await queue.enqueue(conn, "record", {"n": 7})
+    background = BackgroundTasks()
+    queue.run_soon(background, Request({"type": "http", "app": app}))
+
+    async with LifespanManager(app):
+        pool = await app.state.database.pool()
+        async with pool.acquire(), asyncio.timeout(10):
+            await background()
+
+    assert recorder.payloads == []
+    assert await run(conn) == 1
+    assert recorder.payloads == [{"n": 7}]
+
+
 async def test_the_worker_loop_runs_jobs_until_cancelled(
     conn: asyncpg.Connection, db_url: str, recorder: Recorder
 ) -> None:

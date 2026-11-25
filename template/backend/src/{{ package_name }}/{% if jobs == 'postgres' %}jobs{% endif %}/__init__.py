@@ -3,8 +3,8 @@
 - `tasks.py` is the project's list: a task is an async function `(conn, payload) -> None`, named in
   `TASKS`; periodic ones are also in `SCHEDULE`.
 - A route queues work with `queue.enqueue(conn, "task", {...})`, inside the same transaction as the
-  change that needs it, then calls `queue.run_soon(background, request)` so it starts right after the
-  response instead of at the next tick.
+  change that needs it. `queue.run_soon(background, request)` tries to start it after the response;
+  if the pool is busy, the job stays queued for a worker or the next tick.
 - `queue.run_due` runs what is due. Three things call it: a loop inside the API process
   (`JOBS_IN_PROCESS`), the `jobs run` / `jobs work` commands, and `/api/jobs/tick`, which a
   scheduler calls with `CRON_SECRET` (the generated GitHub Actions workflow, or the platform's cron).

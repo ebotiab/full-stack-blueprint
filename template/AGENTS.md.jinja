@@ -184,7 +184,8 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
 - **Background jobs.** Work that may fail or take long leaves the request: add an async task
   `(conn, payload)` to `TASKS` in `jobs/tasks.py`, queue it with `await queue.enqueue(conn, "name",
   {...})` inside the route's transaction, and call `queue.run_soon(background, request)` (a
-  `BackgroundTasks` parameter) so it starts after the response. Periodic tasks go in `SCHEDULE`
+  `BackgroundTasks` parameter) to try to start it after the response. If the pool is busy, a worker
+  or the next tick can pick it up. Periodic tasks go in `SCHEDULE`
   (`Every(minutes=…)`, `Daily(at=…)`, UTC). Delivery is at least once: tasks must be safe to
   repeat and short (a lease of 5 minutes); failures retry 5 times, then `jobs failed` lists them.
   {% if api_deploy == 'railway' %}The API process runs the jobs (`JOBS_IN_PROCESS`).{% else %}The API process runs them while awake; `.github/workflows/jobs-tick.yml` calls `/api/jobs/tick` every 10 minutes.{% endif %}

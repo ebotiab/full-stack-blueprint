@@ -120,7 +120,7 @@ Rule of thumb: **start with `sessions`** unless a customer requires SSO or MFA. 
 service and no monthly bill, and the session lives in a cookie that page scripts cannot read. With
 `oidc` the visor holds the provider's token in the browser. Both protect routes the same way
 (`user: CurrentUser`), so switching later changes the sign-in screen and the settings, not your
-routes.
+routes. A database with existing accounts also needs the [account migration](#switching-sign-in-modes-with-existing-accounts).
 
 > [!NOTE]
 > There is no public sign-up page: with `sessions` you create accounts with the CLI
@@ -226,3 +226,24 @@ migration if you want them gone, and check that nothing of yours still imports t
 
 A question your project never answered takes the current default on update. A visor generated
 before `ui` existed (before v0.7.0) becomes Tailwind; add `--data ui=css` to keep its stylesheet.
+
+### Switching sign-in modes with existing accounts
+
+Both `sessions` and database-backed `oidc` create a table called `users`, with different
+columns. Once a database has run either sign-in migration, switching to the other mode needs
+a project-specific migration. This also applies if sign-in was turned off in between.
+
+1. Back up the database and rehearse on a restored copy. Inventory references to `users.id`,
+   account status, administrative privileges and active credentials.
+2. Run Copier on a branch. Restore every previously applied SQL file from Git with its original
+   contents, including optional password-reset migrations. Remove the newly generated,
+   still-unapplied sign-in bootstrap file that also creates `users`.
+3. Write a new numbered migration that converts the existing rows in place and preserves their
+   IDs and foreign keys. For OIDC, establish a verified, unique mapping from each account to
+   its provider issuer and subject. Email alone is insufficient. For sessions, establish unique
+   verified addresses, a secure first-password enrollment and an explicit access policy for
+   accounts awaiting enrollment. Review how the new mode enforces disabled accounts and roles.
+4. Coordinate the cutover with authentication and application writes. Revoke obsolete
+   credentials and verify account ownership, privileges, foreign keys and sign-in against the
+   restored data. Run the full migration sequence on an empty database too. Keep the backup
+   and previous application version for rollback.

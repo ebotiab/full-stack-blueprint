@@ -29,6 +29,8 @@ FIRST_RETRY = dt.timedelta(seconds=30)
 MAX_RETRY = dt.timedelta(hours=1)
 #: How often the worker loop looks again when nothing was due.
 POLL_SECONDS = 5.0
+#: How long the post-response worker waits for a spare connection before deferring to a later run.
+RUN_SOON_ACQUIRE_SECONDS = 1.0
 #: How long `run_soon` works after a response.
 RUN_SOON_SECONDS = 10.0
 
@@ -172,14 +174,21 @@ async def run_forever(database: Database, poll_seconds: float = POLL_SECONDS) ->
 
 
 def run_soon(background: BackgroundTasks, request: Request) -> None:
-    """After the response, run due jobs for a few seconds: what the route queued starts now."""
+    """After the response, try to run due jobs for a few seconds using a spare connection."""
     background.add_task(_run_briefly, request.app.state.database)
 
 
 async def _run_briefly(database: Database) -> None:
     try:
         pool = await database.pool()
-        async with pool.acquire() as conn:
+        try:
+            conn = await asyncio.wait_for(pool.acquire(), timeout=RUN_SOON_ACQUIRE_SECONDS)
+        except TimeoutError:
+            # A request can still hold its own connection. The job is durable until the next run.
+            return
+        try:
             await run_due(cast(asyncpg.Connection, conn), seconds=RUN_SOON_SECONDS)
+        finally:
+            await pool.release(conn)
     except Exception:
         logfire.exception("background jobs could not run after the response")

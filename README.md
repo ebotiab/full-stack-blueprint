@@ -420,7 +420,8 @@ Background work kept in the project's PostgreSQL, with no queue service (no Redi
 lines of plain SQL under `backend/src/<package>/jobs/`:
 
 - **Queued jobs**: `queue.enqueue(conn, "task", {...})` inside the route's transaction (if the
-  change rolls back, the job is never queued), then `run_soon` starts it right after the response.
+  change rolls back, the job is never queued). `run_soon` tries to start it after the response;
+  when the pool is busy, the job stays queued for a worker or the next tick.
   Workers claim jobs with `FOR UPDATE SKIP LOCKED` and a 5-minute lease (a dead worker's job runs
   again); failures retry five times with doubling delays, then stay for `jobs failed` / `jobs retry`.
 - **Periodic tasks**: `Every(minutes=…)` or `Daily(at=…)` (UTC), queued once per period however

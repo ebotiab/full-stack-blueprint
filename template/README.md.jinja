@@ -209,6 +209,10 @@ and lists any error since.
 
 ## Skills for coding agents
 
+Open this folder in the Codex app, or start `codex` or `claude` here. Codex reads `AGENTS.md` directly,
+and Claude Code imports it from `CLAUDE.md`. Both can use the `change-the-api` and `ship-a-change`
+skills and run `make check` to verify a change.
+
 `.agents/skills/` (also `.claude/skills/`) gives agents the project's own procedures and links to
 the skills that FastAPI, Typer{% if agent == 'pydantic_ai' %}, Pydantic AI{% endif %} and Logfire ship in their packages, so the guidance matches the
 installed versions. More skills that fit this project live in other repositories; add the ones you

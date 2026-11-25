@@ -129,6 +129,8 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - name: Copier
         run: uv tool install "copier==9.19.1"
+      - name: Check the template repository instructions and new-project skill
+        run: bash template/scripts/check-skills.sh . new-project
       - name: Check worktree database isolation and upgrades
         run: scripts/check-worktree-databases.sh "$RUNNER_TEMP/worktree-databases"
       - name: Generate, change the template, update

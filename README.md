@@ -159,7 +159,7 @@ need no cloud account until you deploy.
 | **Node 26 LTS** (npm 11.10+) | Runs the visor's tools | [nodejs.org](https://nodejs.org), `brew install node@26` or `nvm install 26` | the visor |
 | **Docker Desktop** | Runs the local PostgreSQL; start it once after installing | [docs.docker.com/get-docker](https://docs.docker.com/get-docker/) | the database |
 | **GitHub CLI** | Creates the repository from the terminal | `brew install gh` or [cli.github.com](https://cli.github.com), then `gh auth login` | optional |
-| **A coding agent** | Writes code with you | [Claude Code](https://claude.com/claude-code), Codex, Cursor… | recommended |
+| **A coding agent** | Writes code with you | [Codex](https://developers.openai.com/codex/quickstart/), [Claude Code](https://claude.com/claude-code), Cursor… | recommended |
 
 > [!NOTE]
 > **On Windows**, install [WSL 2](https://learn.microsoft.com/windows/wsl/install) with Ubuntu,
@@ -282,8 +282,8 @@ Ctrl-C stops everything.
 
 ### 7. Work with a coding agent
 
-Open the project folder with your agent (for Claude Code, run `claude` inside it) and ask for a
-change in plain words, for example:
+Open the generated project folder in the Codex app, or run `codex` for Codex CLI or `claude`
+for Claude Code from that folder. Give either agent the same task in plain words.
 
 > Add an endpoint that lists bus stops near a point, with its table and migration.
 

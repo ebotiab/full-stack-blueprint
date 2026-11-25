@@ -6,7 +6,7 @@ Vercel). People start with the [README](README.md); this file is for coding agen
 with the template. Everything here is in English: code, docs, commit messages and pull requests.
 
 **Design principle.** The template is built for development led by coding agents: the developer
-directs and an agent such as Claude Code writes most of the code. Keep every change in that spirit:
+directs and an agent such as Codex or Claude Code writes most of the code. Keep every change in that spirit:
 explicit code an agent can read and verify over abstraction that saves a person typing (hence
 asyncpg and plain SQL migrations, no ORM), commands that never prompt and end with a reliable exit
 code, and contracts the CI checks (types, OpenAPI schema, generated client). The README section

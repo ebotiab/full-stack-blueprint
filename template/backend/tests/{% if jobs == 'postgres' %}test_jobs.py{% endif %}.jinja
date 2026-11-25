@@ -128,6 +128,42 @@ async def test_a_job_whose_lease_ran_out_runs_again(
     assert len(recorder.payloads) == 1
 
 
+@pytest.mark.parametrize("old_fails", [False, True], ids=["late-success", "late-failure"])
+async def test_a_late_worker_leaves_the_new_lease_intact(
+    conn: asyncpg.Connection, db_url: str, recorder: Recorder, old_fails: bool
+) -> None:
+    job_id = await queue.enqueue(conn, "record")
+    first_started = asyncio.Event()
+    reclaimed = asyncio.Event()
+    lease_after_old_attempt: dt.datetime | None = None
+
+    async def slow_task(conn: asyncpg.Connection, payload: dict[str, Any]) -> None:
+        first_started.set()
+        await reclaimed.wait()
+        if old_fails:
+            raise RuntimeError("late failure")
+
+    async with connect(db_url) as other, asyncio.timeout(10), asyncio.TaskGroup() as workers:
+        old_worker = workers.create_task(
+            queue.run_due(conn, seconds=5, tasks={"record": slow_task}, schedule=[])
+        )
+        await first_started.wait()
+        await other.execute("UPDATE jobs SET locked_until = now() - interval '1 second'")
+
+        async def new_task(conn: asyncpg.Connection, payload: dict[str, Any]) -> None:
+            nonlocal lease_after_old_attempt
+            reclaimed.set()
+            await old_worker
+            lease_after_old_attempt = await conn.fetchval(
+                "SELECT locked_until FROM jobs WHERE id = $1", job_id
+            )
+
+        assert await queue.run_due(other, seconds=5, tasks={"record": new_task}, schedule=[]) == 1
+
+    assert lease_after_old_attempt is not None
+    assert await conn.fetchval("SELECT count(*) FROM jobs") == 0
+
+
 async def test_concurrent_workers_run_each_job_once(
     conn: asyncpg.Connection, db_url: str, recorder: Recorder
 ) -> None:

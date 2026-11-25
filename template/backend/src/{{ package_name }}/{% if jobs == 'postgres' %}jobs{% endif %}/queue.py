@@ -1,8 +1,8 @@
 """The job queue: plain SQL on the `jobs` table.
 
-A worker claims one due job at a time with `FOR UPDATE SKIP LOCKED`, so any number of workers (API
-instances, `jobs work`, ticks) share the queue without two of them running the same job at once.
-A claim is a lease: if its worker dies, the job is due again when the lease runs out. A failure is
+A worker claims one due job at a time with `FOR UPDATE SKIP LOCKED`. While a lease is active,
+other workers skip the job. After expiry another worker can claim it, and only the worker with
+the latest lease can record an outcome. Tasks must be safe to repeat. A failure is
 retried later, each time after twice the delay; after `MAX_ATTEMPTS` the job is kept as failed.
 A finished job is deleted, so the table only holds pending and failed work.
 """
@@ -33,7 +33,8 @@ POLL_SECONDS = 5.0
 RUN_SOON_SECONDS = 10.0
 
 _CLAIM = """
-UPDATE jobs SET attempts = attempts + 1, locked_until = now() + $1::interval
+UPDATE jobs SET attempts = attempts + 1, locked_until = now() + $1::interval,
+                lease_id = gen_random_uuid()
 WHERE id = (
     SELECT id FROM jobs
     WHERE failed_at IS NULL AND run_at <= now()
@@ -42,7 +43,7 @@ WHERE id = (
     FOR UPDATE SKIP LOCKED
     LIMIT 1
 )
-RETURNING id, task, payload, attempts
+RETURNING id, task, payload, attempts, lease_id
 """
 
 
@@ -136,17 +137,20 @@ async def _run(conn: asyncpg.Connection, job: asyncpg.Record, tasks: Mapping[str
             delay = min(FIRST_RETRY * 2 ** (job["attempts"] - 1), MAX_RETRY)
             await conn.execute(
                 """
-                UPDATE jobs SET locked_until = NULL, last_error = $2,
+                UPDATE jobs SET locked_until = NULL, lease_id = NULL, last_error = $2,
                     run_at = now() + $3::interval, failed_at = CASE WHEN $4 THEN now() END
-                WHERE id = $1
+                WHERE id = $1 AND lease_id = $5
                 """,
                 job["id"],
                 f"{type(error).__name__}: {error}"[:2000],
                 delay,
                 final,
+                job["lease_id"],
             )
         else:
-            await conn.execute("DELETE FROM jobs WHERE id = $1", job["id"])
+            await conn.execute(
+                "DELETE FROM jobs WHERE id = $1 AND lease_id = $2", job["id"], job["lease_id"]
+            )
 
 
 async def run_forever(database: Database, poll_seconds: float = POLL_SECONDS) -> None:

@@ -1,13 +1,29 @@
 #!/usr/bin/env bash
-# Check that every library skill linked in .agents/skills/ resolves to a skill (`make check`).
+# Verify the instruction files and skills that Codex and Claude Code read.
 #
 # The libraries the project uses ship agent skills inside their packages; .agents/skills/ links
 # to them in backend/.venv, so an agent reads the guidance of the installed version. A link stops
 # resolving when the package moves or drops its skill, or when the Python version in the path
-# changes. The project's own skills (plain directories) are not checked here.
+# changes. The template repository runs the same checks with its own project root and skill names.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+# With no arguments, check the generated project. A caller can supply ROOT SKILL [SKILL ...].
+if [ "$#" -eq 0 ]; then
+  set -- "$(dirname "$0")/.." change-the-api ship-a-change
+fi
+cd "$1"
+shift
+
+fail() { echo "$1" >&2; exit 1; }
+[[ -f AGENTS.md && -s AGENTS.md ]] || fail "Codex needs a nonempty AGENTS.md."
+grep -Fxq '@AGENTS.md' CLAUDE.md || fail "Keep @AGENTS.md on its own line in CLAUDE.md."
+[[ -L .claude/skills && .claude/skills -ef .agents/skills ]] \
+  || fail "Link .claude/skills to ../.agents/skills so both agents discover the same skills."
+for skill in "$@"; do
+  file=".agents/skills/$skill/SKILL.md"
+  [[ -f "$file" && -s "$file" ]] || fail "Missing or empty project skill: $file"
+done
+
 broken=()
 # The Python version in the links' paths (python3.14) must be the project's (backend/.python-version).
 python=$(cat backend/.python-version 2>/dev/null || true)

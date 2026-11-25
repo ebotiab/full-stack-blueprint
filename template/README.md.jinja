@@ -87,8 +87,11 @@ The visor's sign-in form has a "Forgot your password?" button for it.{% endif %}
 Accounts live at an OpenID Connect provider (Auth0, Keycloak, Zitadel, Logto, Neon Auth…). Clients
 send its tokens as `Authorization: Bearer <token>`; the API verifies them against the provider's
 published keys and `/api/auth/me` returns the caller{% if with_database %}, kept in the `users` table from the first request{% endif %}.
-Set `{{ env_prefix }}AUTH_ISSUER` (and usually `{{ env_prefix }}AUTH_AUDIENCE`) in `backend/.env` and on the API's
-platform: until then protected routes answer 503. `backend/.env.example` lists the other settings.
+Set `{{ env_prefix }}AUTH_ISSUER` and `{{ env_prefix }}AUTH_AUDIENCE` in `backend/.env` and on the API's
+platform. Use this API's identifier as the audience. Protected routes answer 503 with incomplete settings.
+For an issuer dedicated to this application whose session tokens omit `aud`, set
+`{{ env_prefix }}AUTH_AUTHORIZED_PARTIES` to the allowed `azp` values instead of an audience.
+Clerk uses frontend origins for `azp`. When both settings are present, both claims must match.
 {%- if with_frontend %} The visor signs in at
 the provider (code flow with PKCE) and sends the token with every request; `/api/messages`, the example route,
 answers only signed-in users. It needs `VITE_OIDC_AUTHORITY` and `VITE_OIDC_CLIENT_ID` in `frontend/.env.local` and in
@@ -190,7 +193,7 @@ allow auto-merge (Settings → General → "Allow auto-merge").
 {%- if auth == 'oidc' %}
 
 **Sign-in provider.** Create an application for the API at your OIDC provider (in an EU region if it
-offers one) and set `{{ env_prefix }}AUTH_ISSUER` and `{{ env_prefix }}AUTH_AUDIENCE` on the API's platform.
+offers one) and configure the issuer and audience on the API's platform as described in [Sign-in](#sign-in).
 {%- if with_frontend %} Create a single-page application for the visor too: register `http://127.0.0.1:5173`, the production URL and,
 if the provider allows patterns, the preview URLs as redirect and logout URLs, and set `VITE_OIDC_AUTHORITY`,
 `VITE_OIDC_CLIENT_ID` (and `VITE_OIDC_AUDIENCE` if the provider needs it) in Vercel.{% endif %}

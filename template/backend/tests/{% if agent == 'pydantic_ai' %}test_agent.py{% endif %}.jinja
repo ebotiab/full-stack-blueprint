@@ -203,8 +203,9 @@ async def test_agent_answers_502_when_the_provider_fails() -> None:
 @pytest.mark.usefixtures("app_settings")
 async def test_agent_requires_sign_in({% if auth == 'oidc' %}monkeypatch: pytest.MonkeyPatch{% endif %}) -> None:
 {%- if auth == 'oidc' %}
-    # Sign-in configured (an issuer), but no token.
+    # Sign-in configured, but no token.
     monkeypatch.setenv(f"{PREFIX}AUTH_ISSUER", "https://issuer.example")
+    monkeypatch.setenv(f"{PREFIX}AUTH_AUDIENCE", "https://api.example")
     get_settings.cache_clear()
     get_verifier.cache_clear()
 {%- endif %}
@@ -219,8 +220,9 @@ async def test_agent_requires_sign_in({% if auth == 'oidc' %}monkeypatch: pytest
 
 
 async def test_agent_requires_sign_in(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Sign-in configured (an issuer), but no token.
+    # Sign-in configured, but no token.
     monkeypatch.setenv(f"{PREFIX}AUTH_ISSUER", "https://issuer.example")
+    monkeypatch.setenv(f"{PREFIX}AUTH_AUDIENCE", "https://api.example")
     get_settings.cache_clear()
     get_verifier.cache_clear()
     try:

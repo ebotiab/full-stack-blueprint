@@ -4,7 +4,7 @@
     async def list_things(user: CurrentUser) -> list[Thing]: ...
 
 `CurrentUser` verifies the provider's token in `Authorization: Bearer`: 401 without a valid one,
-503 while sign-in is not configured (`AUTH_ISSUER`) or the provider's keys cannot be fetched.
+503 while the issuer or token restrictions are missing, or the provider's keys cannot be fetched.
 """
 
 from functools import lru_cache
@@ -17,7 +17,7 @@ from pydantic import BaseModel
 {% if with_database -%}
 from ..api.deps import ConnectionDep
 {% endif -%}
-from ..settings import PREFIX, get_settings
+from ..settings import get_settings
 {%- if with_database %}
 from . import users
 {%- endif %}
@@ -42,13 +42,16 @@ bearer = HTTPBearer(scheme_name="oidc", bearerFormat="JWT", auto_error=False)
 def get_verifier() -> Verifier:
     """One verifier per process, so the provider's keys are fetched once and then cached."""
     settings = get_settings()
-    return Verifier(
-        settings.auth_issuer,
-        algorithms=settings.auth_algorithms,
-        jwks_url=settings.auth_jwks_url or None,
-        audience=settings.auth_audience or None,
-        authorized_parties=settings.auth_authorized_parties,
-    )
+    try:
+        return Verifier(
+            settings.auth_issuer,
+            algorithms=settings.auth_algorithms,
+            jwks_url=settings.auth_jwks_url or None,
+            audience=settings.auth_audience or None,
+            authorized_parties=settings.auth_authorized_parties,
+        )
+    except ValueError as error:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from None
 
 
 def unauthorized(detail: str, error: str | None = None) -> HTTPException:
@@ -65,11 +68,6 @@ async def current_user(
     conn: ConnectionDep,
 {%- endif %}
 ) -> User:
-    if not verifier.issuer:
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            f"Sign-in is not configured: set {PREFIX}AUTH_ISSUER.",
-        )
     if credentials is None:
         raise unauthorized("Not signed in.")
     try:

@@ -166,7 +166,8 @@ Single checks while working: `cd backend && uv run pytest tests/test_api.py -k h
 {%- elif auth == 'oidc' %}
 - **Sign-in.** The OIDC provider owns the accounts; the API only verifies its tokens. Protect a
   route with a `user: CurrentUser` parameter from `auth/deps.py`: 401 without a valid token, 503
-  while `{{ env_prefix }}AUTH_ISSUER` is unset. Keep the invariants in `auth/__init__.py`, which
+  until the issuer and audience are configured (or authorized parties for a dedicated issuer
+  whose tokens omit `aud`). Keep the invariants in `auth/__init__.py`, which
   `tests/test_auth.py` checks offline with a fake provider: asymmetric algorithms only, issuer and
   expiry always checked, cached keys.{% if with_database %} Users are keyed by `(issuer, subject)`, never by email.{% endif %}
 {%- endif %}

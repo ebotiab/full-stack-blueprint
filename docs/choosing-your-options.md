@@ -111,7 +111,7 @@ Without it there is no Docker, no Neon and no migrations, but also no `auth=sess
 | **Who owns the accounts** | Nobody: everything is public | Your database | An identity provider (Auth0, Keycloak, Zitadel, Logto, Neon Auth, Clerk…) |
 | **How people sign in** | Nothing to do | Email and password in the visor; API keys for scripts | At the provider's page (SSO, social login, MFA, passkeys: whatever it offers) |
 | **Best for** | Public sites and APIs, prototypes | Internal tools, apps for a known group, APIs for scripts | B2B SaaS, companies that require SSO or SAML, apps that need MFA |
-| **What you set up** | Nothing | The first admin, with one CLI command | An application at the provider and its issuer URL |
+| **What you set up** | Nothing | The first admin, with one CLI command | An application at the provider, its issuer URL and the API audience (or allowed frontend origins for a dedicated Clerk instance) |
 | **Monthly cost** | None | None | The provider's plan (most have a free tier) |
 | **Needs the database** | No | Yes | No (with one, users get a row) |
 | **Personal data** | — | Stays in your PostgreSQL | Also at the provider |

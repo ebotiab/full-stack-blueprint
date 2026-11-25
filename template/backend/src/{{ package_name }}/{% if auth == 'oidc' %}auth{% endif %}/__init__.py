@@ -9,6 +9,8 @@ Invariants (tests/test_auth.py checks each one):
 
 - Only asymmetric signatures are accepted (RS256, ES256, EdDSA): an HS256 token signed with the
   provider's public key is refused.
-- Issuer, expiry and, when configured, audience and authorized party are checked on every token.
+- Issuer and expiry are always required. Shared issuers need the API's audience. A dedicated
+  issuer may use tokens without an audience when the allowed authorized parties are configured.
+- When configured together, the token must match both audience and authorized party.
 - The keys are cached: an unknown key id fetches them again, at most once a minute.
 """

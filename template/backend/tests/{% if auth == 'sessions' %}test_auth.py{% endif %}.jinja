@@ -407,6 +407,21 @@ async def test_a_reset_code_sets_a_new_password_once(
     assert (await confirm_reset(http, code, "yet another password")).status_code == 400
 
 
+async def test_a_failed_password_change_leaves_the_reset_code_usable(
+    http: httpx.AsyncClient, user: users.User, conn: asyncpg.Connection, outbox: Outbox
+) -> None:
+    await login(http)
+    await request_reset(http)
+    code = outbox.code()
+    # Keep the existing account but reject any update until the constraint is removed.
+    await conn.execute("ALTER TABLE users ADD CONSTRAINT stop_updates CHECK (false) NOT VALID")
+    with pytest.raises(asyncpg.CheckViolationError, match="stop_updates"):
+        await confirm_reset(http, code)
+    assert (await http.get("/api/auth/me")).status_code == 200
+    await conn.execute("ALTER TABLE users DROP CONSTRAINT stop_updates")
+    assert (await confirm_reset(http, code)).status_code == 204
+
+
 async def test_an_unknown_email_gets_the_same_answer_and_no_email(
     http: httpx.AsyncClient, user: users.User, outbox: Outbox
 ) -> None:

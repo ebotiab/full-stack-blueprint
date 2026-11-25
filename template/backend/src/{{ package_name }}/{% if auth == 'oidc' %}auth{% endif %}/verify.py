@@ -14,6 +14,8 @@ from typing import Any
 import httpx
 import jwt
 
+from ..settings import PREFIX
+
 CACHE_SECONDS = 3600.0
 REFETCH_SECONDS = 60.0
 #: Clock difference tolerated between the provider and this server, for `exp` and `nbf`.
@@ -40,6 +42,11 @@ class Verifier:
         transport: httpx.AsyncBaseTransport | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
+        if not issuer or not (audience or authorized_parties):
+            raise ValueError(
+                f"Set {PREFIX}AUTH_ISSUER and {PREFIX}AUTH_AUDIENCE. For a dedicated issuer "
+                f"with no audience claim, set {PREFIX}AUTH_AUTHORIZED_PARTIES and the issuer."
+            )
         self.issuer = issuer
         self.algorithms = list(algorithms)
         self.jwks_url = jwks_url
@@ -70,6 +77,8 @@ class Verifier:
             )
         except jwt.InvalidTokenError as error:
             raise InvalidToken(str(error)) from None
+        if self.audience is None and "aud" in claims:
+            raise InvalidToken("This token names an audience, but the API has none configured.")
         if self.authorized_parties and claims.get("azp") not in self.authorized_parties:
             raise InvalidToken("The token was issued to another client (azp).")
         return claims

@@ -108,14 +108,14 @@ class Settings(BaseSettings):
     #: Where the provider publishes its signing keys. Empty: read from the issuer's OpenID
     #: discovery document (`<issuer>/.well-known/openid-configuration`).
     auth_jwks_url: str = ""
-    #: The `aud` every token must carry (the API's identifier at the provider). Empty: not checked.
+    #: The API identifier required in `aud`. Required for issuers shared by multiple applications.
     auth_audience: str = ""
     #: Signature algorithms accepted, comma-separated. Asymmetric only: see `auth/verify.py`.
     auth_algorithms: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["RS256", "ES256", "EdDSA"]
     )
-    #: Client ids accepted in `azp`, comma-separated, for providers whose tokens carry no `aud`
-    #: (Clerk). Empty: not checked.
+    #: Allowed `azp` values, comma-separated (frontend origins for Clerk). With no audience,
+    #: this selects tokens without an `aud` claim from an issuer dedicated to this application.
     auth_authorized_parties: Annotated[list[str], NoDecode] = Field(default_factory=list)
     #: The claim that holds the user's email (Auth0 namespaces custom claims: set its name here).
     auth_email_claim: str = "email"

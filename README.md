@@ -377,8 +377,9 @@ Kinde, Pocket ID, Supabase and Neon Auth (and Clerk, through `azp`):
   the project's async httpx, cached for an hour and fetched again on an unknown key id at most
   once a minute.
 - **Checks**: signature with asymmetric algorithms only (RS256, ES256, EdDSA, which rules out
-  HS256 confusion), issuer, expiry with 30 seconds of leeway, and audience and authorized party
-  when set. Settings are `<PREFIX>AUTH_ISSUER`, `AUTH_AUDIENCE`, `AUTH_JWKS_URL`,
+  HS256 confusion), issuer, expiry with 30 seconds of leeway and the API's audience. A dedicated
+  issuer can use tokens without `aud` by configuring allowed `azp` values (frontend origins for
+  Clerk). When both restrictions are set, both must pass. Settings are `<PREFIX>AUTH_ISSUER`, `AUTH_AUDIENCE`, `AUTH_JWKS_URL`,
   `AUTH_ALGORITHMS`, `AUTH_AUTHORIZED_PARTIES` and `AUTH_EMAIL_CLAIM`.
 - **Users**: with a database, one row per `(issuer, subject)`, created on first sight; without
   one, `CurrentUser` comes from the claims alone. It works with or without the database.

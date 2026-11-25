@@ -34,6 +34,7 @@ Neon or Logfire without the user's explicit go-ahead.
   `make setup` and `make check`. `scripts/check-update.sh`: checks that `copier update` applies a
   template change cleanly. `scripts/check-name-lengths.sh`: generates the backend for every
   package-name length (1 to 58) and runs ruff on all of them.
+  `scripts/check-project-metadata.py` checks custom package names and the generated project metadata.
 - `.github/dependabot.yml`: weekly updates of the actions this repository's CI uses.
 - `.github/workflows/ci.yml`: five combinations that cover every value of every option, the
   name-length check and the update check.

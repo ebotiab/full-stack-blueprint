@@ -23,7 +23,9 @@ project_name:
   type: str
   help: Human-readable project name, used in titles and docs (e.g. "Bus Stops").
   default: My Project
-  validator: "{% if not project_name.strip() %}The project name cannot be empty.{% endif %}"
+  validator: >-
+    {% if not project_name.strip() %}The project name cannot be empty.
+    {%- elif project_name | regex_search('[\x00-\x1f\x7f]') %}Use a single line of text for the project name.{% endif %}
 
 project_slug:
   type: str
@@ -72,7 +74,12 @@ package_name:
     zlib zoneinfo
     ".split() -%}
     {% if not (package_name | regex_search('^[a-z][a-z0-9_]*$')) %}Use lowercase letters, digits
-    and underscores, starting with a letter.{% elif package_name in stdlib %}`{{ package_name }}`
+    and underscores, starting with a letter.
+    {%- elif package_name in "and as assert async await break class continue def del elif else
+    except finally for from global if import in is lambda nonlocal not or pass raise return try
+    while with yield".split() %}`{{ package_name }}` is a Python keyword. Pass
+    --data package_name={{ package_name }}_app or another name.
+    {%- elif package_name in stdlib %}`{{ package_name }}`
     is a module of Python's standard library: `import {{ package_name }}` would load it instead of
     the project's package, and ruff would sort the project's imports as standard library. Pass
     --data package_name={{ package_name }}_app or another name.
@@ -93,6 +100,8 @@ description:
   type: str
   help: One-sentence description, used in pyproject.toml, the API docs and the README.
   default: A FastAPI API with a React visor.
+  validator: >-
+    {% if description | regex_search('[\x00-\x1f\x7f]') %}Use a single line of text for the description.{% endif %}
 
 github_repo:
   type: str

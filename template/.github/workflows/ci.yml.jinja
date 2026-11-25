@@ -64,7 +64,7 @@ jobs:
         # No password: the database lives only for this job and is not reachable from outside.
         env:
           POSTGRES_USER: {{ package_name }}
-          POSTGRES_DB: {{ package_name }}_test
+          POSTGRES_DB: {{ package_name }}
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
@@ -78,7 +78,7 @@ jobs:
       # `uv run` fails instead of updating uv.lock when it is out of date.
       UV_LOCKED: "1"
 {%- if with_database %}
-      TEST_DATABASE_URL: postgresql://{{ package_name }}@localhost:5432/{{ package_name }}_test
+      TEST_DATABASE_URL: postgresql://{{ package_name }}@localhost:5432/{{ package_name }}-test
 {%- endif %}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -92,6 +92,16 @@ jobs:
       - name: Dependencies (uv sync --locked)
         working-directory: backend
         run: uv sync --locked
+{%- if with_database %}
+      # createdb sets the database comment that pytest verifies before clearing any schema.
+      - name: Create the disposable test database
+        env:
+          POSTGRES_CONTAINER: ${{ '{{' }} job.services.postgres.id {{ '}}' }}
+        run: >-
+          docker exec "$POSTGRES_CONTAINER"
+          createdb -U {{ package_name }} --maintenance-db={{ package_name }}
+          "{{ package_name }}-test" "{{ env_prefix }}TEST_DATABASE_URL"
+{%- endif %}
       - name: make check-backend
         run: make check-backend
 {%- if type_checker == 'pyright' %}

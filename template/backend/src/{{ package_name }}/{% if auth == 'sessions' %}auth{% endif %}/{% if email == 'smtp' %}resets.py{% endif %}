@@ -82,15 +82,15 @@ async def redeem(conn: asyncpg.Connection, email: str, code: str) -> int | None:
     """The user's id when the code is right and still valid, and the code is used up; else None."""
     row = await conn.fetchrow(
         """
-        SELECT r.user_id, r.code_hash FROM password_resets r JOIN users u ON u.id = r.user_id
-        WHERE u.email = $1 AND u.is_active AND r.expires_at > now()
+        DELETE FROM password_resets r USING users u
+        WHERE r.user_id = u.id AND u.email = $1 AND u.is_active
+          AND r.code_hash = $2 AND r.expires_at > now()
+        RETURNING r.user_id
         """,
         normalize_email(email),
+        tokens.hash_secret(normalize(code)),
     )
-    if row is None or not tokens.secret_matches(normalize(code), row["code_hash"]):
-        return None
-    await conn.execute("DELETE FROM password_resets WHERE user_id = $1", row["user_id"])
-    return row["user_id"]
+    return row["user_id"] if row is not None else None
 
 
 async def delete_expired(conn: asyncpg.Connection) -> None:

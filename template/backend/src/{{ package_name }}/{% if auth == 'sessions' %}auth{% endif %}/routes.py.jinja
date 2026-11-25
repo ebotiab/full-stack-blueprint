@@ -141,8 +141,9 @@ async def confirm_password_reset(
     """Set a new password with the emailed code. Every session of the user ends: sign in again."""
     check_same_origin(request)
     await _take_attempt(conn, body.email)
-    user_id = await resets.redeem(conn, body.email, body.code)
-    if user_id is None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Wrong or expired code.")
-    await users.set_password(conn, user_id, body.new_password)
+    async with conn.transaction():
+        user_id = await resets.redeem(conn, body.email, body.code)
+        if user_id is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Wrong or expired code.")
+        await users.set_password(conn, user_id, body.new_password)
 {%- endif %}

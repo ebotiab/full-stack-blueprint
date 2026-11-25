@@ -100,6 +100,8 @@ jobs:
           python-version: "3.14"
       - name: Copier
         run: uv tool install "copier==9.19.1"
+      - name: Check custom package names and project metadata
+        run: python3 scripts/check-project-metadata.py
       - name: Generate every package-name length, run ruff
         run: scripts/check-name-lengths.sh "$RUNNER_TEMP/lengths"
 

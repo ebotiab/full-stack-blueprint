@@ -318,9 +318,9 @@ Which answers suit which project: [🧭 Choosing your options](docs/choosing-you
 
 | Question | Default | Values |
 | --- | --- | --- |
-| `project_name` | `My Project` | any text |
+| `project_name` | `My Project` | one line of text |
 | `project_slug` | from the name (`my-project`) | kebab-case: repository, CLI command, service names |
-| `package_name` | from the slug (`my_project`) | Python package, at most 58 characters, not a standard-library module (`calendar`, `email`) |
+| `package_name` | from the slug (`my_project`) | Python package, at most 58 characters, excluding Python keywords and standard-library modules (`class`, `calendar`, `email`) |
 | `env_prefix` | from the package (`MY_PROJECT_`) | prefix of the project's environment variables |
 | `description` | `A FastAPI API with a React visor.` | one sentence |
 | `github_repo` | `your-github-user/<slug>` | `owner/name`; used for links, Logfire and Railway |

@@ -1,4 +1,13 @@
-"""The {{ project_name }} API. Every route lives under /api, so the visor and the API can share a domain."""
+{# Use the delimiter Ruff prefers while preserving the answer's quotes, backslashes and Unicode. #}
+{%- macro python_string(value) -%}
+    {%- set literal = value | to_json(ensure_ascii=false) -%}
+    {%- if value.count('"') > value.count("'") -%}
+        '{{ literal[1:-1] | replace('\\"', '"') | replace("'", "\\'") }}'
+    {%- else -%}
+        {{ literal }}
+    {%- endif -%}
+{%- endmacro -%}
+"""Every route lives under /api, so the visor and the API can share a domain."""
 
 {% if jobs == 'postgres' -%}
 import asyncio
@@ -111,9 +120,9 @@ def create_app() -> FastAPI:
     settings = get_settings()
     configure_logfire(settings)
     app = FastAPI(
-        title="{{ project_name }} API",
+        title={{ python_string(project_name ~ " API") }},
         version=__version__,
-        description="{{ description }}",
+        description={{ python_string(description) }},
         lifespan=lifespan,
     )
 {%- if with_database %}

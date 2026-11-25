@@ -229,3 +229,12 @@ This project was generated with [Copier](https://copier.readthedocs.io) from `fu
 To take later improvements: commit or stash your work, run `copier update --defaults`, resolve
 conflicts, then `make setup && make check`. The template's release notes say what each version
 changes (its repository is `_src_path` in `.copier-answers.yml`).
+{%- if with_database %}
+
+Switching between `sessions` and database-backed `oidc` requires a data migration after either
+sign-in schema has been applied. Before running setup or deploying, restore previously applied
+migration files from Git and remove the newly generated, unapplied sign-in bootstrap. Write a
+new forward migration that preserves account IDs and references. Rehearse account mapping,
+credential enrollment or revocation, and rollback on a restored copy of the database. See
+[Switching sign-in modes with existing accounts](https://github.com/ebotiab/full-stack-blueprint/blob/main/docs/choosing-your-options.md#switching-sign-in-modes-with-existing-accounts).
+{%- endif %}

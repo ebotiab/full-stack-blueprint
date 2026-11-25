@@ -10,7 +10,8 @@ mkdir -p "$1"
 work=$(cd "$1" && pwd)
 template=$(cd "$(dirname "$0")/.." && pwd)
 project=$work/main
-copier copy --quiet --defaults --vcs-ref HEAD --data project_slug=wt-feature-a-test "$template" "$project"
+copier copy --quiet --defaults --vcs-ref HEAD --data project_slug=wt-feature-a-test \
+  --data with_frontend=false "$template" "$project"
 git -C "$project" init -q -b main
 git -C "$project" add -A
 git -C "$project" -c user.name=template-ci -c user.email=ci@example.invalid commit -qm generated
@@ -66,3 +67,29 @@ cp backend/.env "$work/expected"
 make -s db-up
 cmp "$work/expected" backend/.env
 echo "Worktree database names are disjoint and existing settings are preserved."
+
+# In a fresh worktree db-up writes backend/.env. A failed db-up must stop the migration:
+# otherwise the CLI uses the main checkout's development database. Skip host tool checks
+# here and record uv calls so this failure path runs without Docker or a real database.
+cd "$work/feature-a-test"
+: > scripts/doctor.sh
+cat > "$work/bin/docker" <<'STUB'
+#!/usr/bin/env bash
+echo 'simulated db-up failure' >&2
+exit 1
+STUB
+cat > "$work/bin/uv" <<'STUB'
+#!/usr/bin/env bash
+printf 'uv call: %s\n' "$*"
+STUB
+chmod +x "$work/bin/uv"
+if make -s setup > "$work/setup.log" 2>&1; then
+  echo "make setup succeeded after db-up failed" >&2
+  exit 1
+fi
+grep -qx 'simulated db-up failure' "$work/setup.log"
+if grep -qE '^uv call: .* migrate( |$)' "$work/setup.log"; then
+  echo "make setup called the migrator after db-up failed" >&2
+  exit 1
+fi
+echo "A failed db-up stops the worktree migration."

@@ -673,6 +673,8 @@ runs `scripts/update-example.sh` on a checkout of the example project and opens 
 there, which merges itself when the example's CI passes. The script also passes the example's
 non-default answers (`auth=sessions`, `agent=pydantic_ai`). It needs the secret `EXAMPLE_REPO_TOKEN` (the workflow's
 first comment says which token).
+The update workflow reads the example's saved `commit_style` for its commit, PR title and explicit
+squash subject; a saved `plain` answer is respected.
 
 ## License
 

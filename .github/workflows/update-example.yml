@@ -105,6 +105,13 @@ jobs:
           fi
           version=$(sed -n 's/^_commit: //p' .copier-answers.yml)
           title="Update from full-stack-blueprint $version"
+          # Use the generated project's saved style, including an explicit plain opt-out.
+          # Older template versions have no answer and keep their previous plain messages.
+          case "$(sed -n 's/^commit_style: //p' .copier-answers.yml)" in
+            gitmoji) title="⬆️ $title" ;;
+            plain|'') ;;
+            *) echo "::error::Unknown commit_style in .copier-answers.yml"; exit 1 ;;
+          esac
           body="Opened by the template's workflow \`update-example.yml\`: \`copier update\` to $version, then the lockfiles and the generated API files. It merges itself when the CI passes."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -117,4 +124,4 @@ jobs:
           else
             gh pr create --base main --head "$BRANCH" --title "$title" --body "$body"
           fi
-          gh pr merge "$BRANCH" --squash --auto
+          gh pr merge "$BRANCH" --squash --auto --subject "$title"

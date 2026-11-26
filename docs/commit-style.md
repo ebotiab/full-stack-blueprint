@@ -32,6 +32,11 @@ not a universal recommendation or a claim that popular projects prove improved p
   [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) defines textual
   types and breaking-change syntax with SemVer meaning. Gitmoji alone supplies neither that
   grammar nor a versioning engine; `plain` here is an unprefixed summary, not Conventional Commits.
+- [Vite's contribution guide](https://github.com/vitejs/vite/blob/main/CONTRIBUTING.md)
+  allows several small work-in-progress commits, requires its textual
+  [commit convention](https://github.com/vitejs/vite/blob/main/.github/commit-convention.md) for
+  PR titles, and tells maintainers to squash and edit the final message. It supports treating
+  branch commits, PR titles and the final history as distinct surfaces that need coordination.
 - [GitHub's squash configuration](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/configuring-commit-squashing-for-pull-requests)
   can derive the default subject from an individual commit or the PR title, depending on settings
   and commit count. A styled PR title alone does not guarantee a styled main history.

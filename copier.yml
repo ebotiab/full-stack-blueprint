@@ -113,6 +113,14 @@ github_repo:
     {% if not (github_repo | regex_search('^[A-Za-z0-9-]+/[A-Za-z0-9._-]+$')) %}Use the form
     owner/name.{% endif %}
 
+commit_style:
+  type: str
+  help: Style for commit subjects, pull request titles and final squash subjects.
+  default: gitmoji
+  choices:
+    "Gitmoji: one emoji followed by an English summary": gitmoji
+    "Plain: an English summary without emojis": plain
+
 with_frontend:
   type: bool
   help: Include the visor (Vite + React + TypeScript in frontend/) that calls the API through a typed client.

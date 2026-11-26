@@ -27,14 +27,18 @@ usually the project name, whether it needs the visor and the database, and the d
    Use a local path to the template instead of `gh:…` when working from a checkout, and add
    `--vcs-ref HEAD` to use its latest commit instead of its latest tag. Never pass `--trust`:
    the template does not need it.
+   `commit_style=gitmoji` is the default for commit subjects, PR titles and squash subjects.
+   Add `--data commit_style=plain` when the user wants messages without emojis. Copier saves
+   the choice in `.copier-answers.yml`; the generated `AGENTS.md` is the source of truth.
 3. Commit the generated files before anything else (Copier's updates rely on git history):
-   `git init -b main && git add -A && git commit -m "Generate from full-stack-blueprint"`.
+   `git init -b main && git add -A && git commit -m "✨ Generate from full-stack-blueprint"`.
+   With `commit_style=plain`, use `Generate from full-stack-blueprint` instead.
 4. `make doctor`. If it fails, it prints how to fix each missing tool; tell the user when a fix
    needs them (installing Docker, starting Docker Desktop).
 5. `make setup`, then `make check` (a few minutes: run it in the background if you can). Both end
    with a summary; everything must say `ok`.
 6. Commit what setup generated (`backend/uv.lock`, `frontend/package-lock.json`,
-   `backend/openapi.json`, `frontend/src/api/schema.d.ts`).
+   `backend/openapi.json`, `frontend/src/api/schema.d.ts`), using the generated commit style.
 7. If the user wants it on GitHub, create the repository (ask public or private), push, and tell
    them to protect `main` with the required checks `Backend` and `Frontend` and to allow auto-merge.
 
@@ -49,6 +53,11 @@ From here the project's own `AGENTS.md` and skills (`ship-a-change`, `change-the
    behavior; tell the user before taking one.
 3. `copier update --defaults` (latest tagged template) or `copier update --defaults --vcs-ref=HEAD`
    (latest commit). To change an answer: add `--data key=value`.
+   A saved `commit_style` survives later updates. Projects without that answer take the new
+   `gitmoji` default; to preserve their previous plain messages, add `--data commit_style=plain`
+   on the first update. The same flag switches an existing project to plain; use
+   `--data commit_style=gitmoji` to switch back. Commit the answers and instructions together.
+   These choices affect future messages only; never rewrite historical commits.
 4. Look for conflict markers (`git grep -nE '^(<<<<<<<|>>>>>>>)'`) and `*.rej` files; resolve them
    keeping the project's own changes.
 5. `make setup && make check`, then open a pull request with the update.

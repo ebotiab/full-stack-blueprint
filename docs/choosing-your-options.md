@@ -210,6 +210,14 @@ template's style.
 | A chat screen and conversation history for the agent | Pydantic AI's adapter for the AI SDK's `useChat` in the visor; a table of messages |
 | Real-time updates | Server-sent events from FastAPI (not on `vercel`, whose functions end with the request) |
 
+## Commit style
+
+`commit_style=gitmoji` adds one emoji to an English summary in commits, PR titles and final
+squash subjects. Keep it for a small visual classification aid when reviewing agent work.
+Choose `--data commit_style=plain` for messages without emojis, for accessibility preferences
+or for tools that handle Unicode poorly. Neither option enables automatic versions or changelogs.
+The [format, examples and research](commit-style.md) explain the tradeoffs.
+
 ## 🔄 Changing your mind
 
 Every decision can be changed in an existing project, with a clean worktree:
@@ -226,6 +234,10 @@ migration if you want them gone, and check that nothing of yours still imports t
 
 A question your project never answered takes the current default on update. A visor generated
 before `ui` existed (before v0.7.0) becomes Tailwind; add `--data ui=css` to keep its stylesheet.
+Likewise, a project without `commit_style` takes `gitmoji`; add `--data commit_style=plain` to
+preserve its previous plain messages. This also switches an existing Gitmoji project to plain;
+`--data commit_style=gitmoji` switches back. Copier saves the answer for future updates.
+Only future messages change; do not rewrite historical commits.
 
 ### Switching sign-in modes with existing accounts
 

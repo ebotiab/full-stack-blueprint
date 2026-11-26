@@ -41,12 +41,15 @@ Follow the [step-by-step guide](#create-your-project-step-by-step) instead.
 uv tool install copier                              # once per computer
 copier copy gh:ebotiab/full-stack-blueprint my-app  # Enter keeps each default
 cd my-app
-git init -b main && git add -A && git commit -m "Generate from full-stack-blueprint"
+git init -b main && git add -A && git commit -m "✨ Generate from full-stack-blueprint"
 make setup   # dependencies, database, migrations, API types
 make dev     # API on :8000, visor on :5173
 ```
 
 Open http://127.0.0.1:5173: the app is running. `make check` runs everything the CI runs.
+The commit examples use the default `commit_style=gitmoji`. Choose `--data commit_style=plain`
+when generating to omit emojis from commit subjects, PR titles and squash subjects; omit the
+emoji in these examples too. See [Commit style](#commit-style).
 
 ## How it fits together
 
@@ -222,7 +225,7 @@ The template has no `_tasks`, so `--trust` is never needed.
 cd bus-stops
 git init -b main
 git add -A
-git commit -m "Generate from full-stack-blueprint"
+git commit -m "✨ Generate from full-stack-blueprint"
 gh repo create your-user/bus-stops --private --source . --push
 ```
 
@@ -263,7 +266,7 @@ All 12 steps passed.
 Then save what `make setup` generated (lockfiles, API schema and types):
 
 ```bash
-git add -A && git commit -m "Lockfiles and generated API types" && git push
+git add -A && git commit -m "🔧 Lock dependencies and generate API types" && git push
 ```
 
 ### 6. Run it
@@ -324,6 +327,7 @@ Which answers suit which project: [🧭 Choosing your options](docs/choosing-you
 | `env_prefix` | from the package (`MY_PROJECT_`) | prefix of the project's environment variables |
 | `description` | `A FastAPI API with a React visor.` | one sentence |
 | `github_repo` | `your-github-user/<slug>` | `owner/name`; used for links, Logfire and Railway |
+| `commit_style` | `gitmoji` | `gitmoji` (one emoji + English summary), `plain` (English summary without emojis); commits, PR titles and squash subjects |
 | `with_frontend` | `true` | include the visor |
 | `ui` | `tailwind` | `tailwind` (Tailwind CSS 4), `css` (one plain stylesheet); asked only with a visor |
 | `with_database` | `true` | include PostgreSQL |
@@ -586,6 +590,43 @@ API URL in `frontend/vercel.json`.
 
 </details>
 
+## Commit style
+
+Generated projects default to `commit_style=gitmoji`: one Unicode emoji, a space and a concise
+English imperative summary, without a trailing period. For example, `🐛 Reject expired sessions`.
+The generated `AGENTS.md` defines eight categories: features (✨), fixes (🐛), docs (📝),
+refactoring (♻️), tests (✅), CI (👷), dependency upgrades (⬆️) and configuration/maintenance (🔧).
+Choose the main purpose of a change and keep its summary understandable without the emoji.
+`plain` uses the same descriptive English summary without emojis or shortcodes, for example
+`Fix expired session handling`.
+
+Agents apply the saved style to individual commits and PR titles. `ship-a-change` normalizes
+the final PR title, passes it explicitly as the squash subject, and checks the commit on `main`.
+Bot commits need not be rewritten; their PR title and final squash subject follow the project.
+There are no hooks or new dependencies. This small Gitmoji-based convention is not Conventional
+Commits and adds no version or changelog automation. It provides a visual cue for reviewing agent
+work; `plain` suits teams that prefer text, screen readers or tooling that handles emoji poorly.
+See the [research and tradeoffs](docs/commit-style.md), including FastAPI's documented PR-title
+policy and observed squash history.
+
+To generate without emojis:
+
+```bash
+copier copy --defaults --data commit_style=plain gh:ebotiab/full-stack-blueprint my-project
+```
+
+To change an existing project, from a clean worktree:
+
+```bash
+copier update --defaults --data commit_style=plain
+```
+
+Use `--data commit_style=gitmoji` to opt back in. Commit `.copier-answers.yml` and the rendered
+instructions together; later `copier update --defaults` keeps the saved answer. A project made
+before this option has no answer and takes `gitmoji` on its first update. Pass
+`--data commit_style=plain` on that update to preserve its previous plain style. Resolve any
+instruction conflicts with the project's own rules. Historical commits are never rewritten.
+
 ## Update a project
 
 Copier remembers the answers in the project's `.copier-answers.yml`. When the template improves,
@@ -603,6 +644,8 @@ make setup && make check
 
 Copier merges the template's changes with yours; conflicts appear as inline markers. Changing an
 answer is also an update: `copier update --defaults --data api_deploy=railway`.
+For commit messages, a missing answer takes the new `gitmoji` default; use
+`--data commit_style=plain` to retain plain messages (see [Commit style](#commit-style)).
 
 ## Working on the template
 
@@ -613,11 +656,13 @@ names like `{% if with_frontend %}frontend{% endif %}` make whole files or folde
 scripts/check-combination.sh /tmp/fsb-a                                  # defaults: make setup + make check
 scripts/check-combination.sh /tmp/fsb-b --data api_deploy=railway --data type_checker=ty
 scripts/check-update.sh /tmp/fsb-update                                  # copier update applies cleanly
+python3 scripts/check-commit-style.py                                   # both styles, saved answers and legacy updates
 scripts/check-name-lengths.sh /tmp/fsb-lengths                           # ruff for every name length
 ```
 
 The CI (`.github/workflows/ci.yml`) runs five combinations that cover every value of every option,
-plus the name-length check and the update check, on every pull request and every Monday: a new
+including default Gitmoji and plain messages in the Vercel/no-database row, plus the name-length
+and update checks (including commit-style persistence), on every pull request and every Monday: a new
 release of a dependency can break new projects without any commit here.
 Agents working on the template read [AGENTS.md](AGENTS.md).
 

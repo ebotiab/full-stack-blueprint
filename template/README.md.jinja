@@ -235,6 +235,21 @@ npx --min-release-age=7 skills add railwayapp/railway-skills --skill use-railway
 
 They are read as instructions: look at what a skill says before adding it.
 
+## Commit style
+
+This project uses `commit_style={{ commit_style }}` for commit subjects, PR titles and final squash
+subjects. {% if commit_style == 'gitmoji' %}Use one Unicode emoji followed by a space and an English imperative summary,
+for example `🐛 Reject expired sessions`. The small category list is in `AGENTS.md`.{% else %}Use an English imperative summary without emojis or shortcodes,
+for example `Fix expired session handling`.{% endif %} Keep the summary descriptive by itself.
+The `ship-a-change` skill carries the final PR title into the squash commit on `main`.
+This convention does not automate versions or changelogs.
+
+To use messages without emojis, run `copier update --defaults --data commit_style=plain` from a
+clean worktree; to opt into emojis, use `--data commit_style=gitmoji`. Commit the saved answer in
+`.copier-answers.yml` together with the generated instructions. Later updates keep that choice.
+Older projects without the answer take `gitmoji`; pass `--data commit_style=plain` on their first
+update to preserve plain messages. Existing commits are never rewritten.
+
 ## Template updates
 
 This project was generated with [Copier](https://copier.readthedocs.io) from `full-stack-blueprint`.
